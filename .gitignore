@@ -1,0 +1,11 @@
+# macOS System Files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Excel Temporary Files
+~$*.xlsx
+~$*.xls
+~$*.xlsm
+*.tmp
