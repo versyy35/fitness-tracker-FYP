@@ -1,4 +1,4 @@
-# 🏋️ AI-Driven Personalized Fitness Tracker & Smart Workout Planner
+# 🏋️ Personalized Fitness Tracker & Smart Workout Planner
 
 ## 📋 Project Information
 - **Student**: Adam Fikri bin Mohd Lotfi
@@ -9,12 +9,11 @@
 - **Timeline**: Two Trimesters (26 weeks)
 
 ## 🎯 Project Overview
-A cross-platform mobile fitness application that tracks user workout activity and generates personalized workout plans using AI-based adaptive recommendation models. The system monitors user performance, evaluates progress trends, and automatically adjusts workout routines to match improving or declining fitness levels.
+A cross-platform mobile fitness application that tracks user workout activity and generates personalized workout plans. The system monitors user performance, evaluates progress trends, and automatically adjusts workout routines to match improving or declining fitness levels.
 
 ## 🚀 Key Features (Planned)
 - ✅ User registration and personalized profile setup
 - ✅ TDEE calculation using Mifflin-St Jeor formula
-- ✅ AI-based workout plan generation
 - ✅ Workout tracking with timers
 - ✅ Progress visualization and analytics
 - ✅ Achievement system for motivation
