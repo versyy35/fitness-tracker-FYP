@@ -19,7 +19,7 @@ A cross-platform mobile fitness application that tracks user workout activity an
 - ✅ Achievement system for motivation
 - ✅ Adaptive recommendations based on user feedback
 
-- ## 📊 Current Status
+## 📊 Current Status
 **Phase**: Planning & Requirements Gathering  
 **Progress**: 5%  
 **Last Updated**: November 24, 2025
