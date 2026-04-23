@@ -4,12 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, Text } from 'react-native';
 import RegisterScreen from './src/screens/RegisterScreen';
 import LoginScreen from './src/screens/LoginScreen';
-
-const WelcomeScreen = () => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-    <Text>Welcome Screen</Text>
-  </View>
-);
+import WelcomeScreen from './src/screens/WelcomeScreen';
 
 const HomeScreen = () => (
   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
