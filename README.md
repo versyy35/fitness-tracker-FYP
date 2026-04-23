@@ -20,6 +20,6 @@ A cross-platform mobile fitness application that tracks user workout activity an
 - ✅ Adaptive recommendations based on user feedback
 
 ## 📊 Current Status
-**Phase**: Project implementation: Flutter and Firebase Setup
-**Progress**: 50%  
-**Last Updated**: April 6, 2026
+**Phase**: Project implementation: Setup React Native, Firebase DB, working authorizations with register and login screens
+**Progress**: 10%  
+**Last Updated**: April 23, 2026
