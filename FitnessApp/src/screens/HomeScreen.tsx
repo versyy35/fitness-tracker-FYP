@@ -3,13 +3,11 @@ import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert
 } from 'react-native';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-//import { auth, db } from '../services/firebase';
 import { signOut } from 'firebase/auth';
-//import { generateWorkoutPlan } from '../utils/ilpAlgo';
 import { auth, db } from '../services/firebase';
 import { generateWorkoutPlan } from '../utils/ilpAlgo';
 
-export default function HomeScreen() {
+export default function HomeScreen({ navigation }: any) {
   const [userData, setUserData] = useState<any>(null);
   const [plan, setPlan] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -21,8 +19,6 @@ export default function HomeScreen() {
       const snap = await getDoc(doc(db, 'users', uid));
       const data = snap.data();
       setUserData(data);
-
-      // Check if plan already exists
       const planSnap = await getDoc(doc(db, 'plans', uid));
       if (planSnap.exists()) {
         setPlan(planSnap.data().days);
@@ -48,7 +44,9 @@ export default function HomeScreen() {
         createdAt: new Date().toISOString(),
       });
       setPlan(generatedPlan);
-      Alert.alert('Success', 'Your workout plan has been generated!');
+      Alert.alert('Workout Complete! 🎉', 'Great job! Keep it up!', [
+        { text: 'Done', onPress: () => navigation.navigate('Main') }
+        ]);
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
@@ -82,12 +80,25 @@ export default function HomeScreen() {
             ? `${todayPlan.exercises.length} exercises · ${userData?.sessionDuration} min · ${userData?.level}`
             : 'Tap below to generate your personalized plan'}
         </Text>
-        <TouchableOpacity style={styles.startButton} onPress={handleGeneratePlan} disabled={loading}>
-          {loading
-            ? <ActivityIndicator color="#4F46E5" />
-            : <Text style={styles.startButtonText}>{plan.length > 0 ? 'Regenerate Plan' : 'Generate Plan'}</Text>}
-        </TouchableOpacity>
+        {todayPlan ? (
+          <TouchableOpacity style={styles.startButton} onPress={() => navigation.navigate('Workout')}>
+            <Text style={styles.startButtonText}>Start Workout</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={styles.startButton} onPress={handleGeneratePlan} disabled={loading}>
+            {loading
+              ? <ActivityIndicator color="#4F46E5" />
+              : <Text style={styles.startButtonText}>Generate Plan</Text>}
+          </TouchableOpacity>
+        )}
       </View>
+
+      {/* Regenerate */}
+      {todayPlan && (
+        <TouchableOpacity onPress={handleGeneratePlan} disabled={loading}>
+          <Text style={styles.regenerate}>{loading ? 'Regenerating...' : '↺ Regenerate Plan'}</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Stats Row */}
       <View style={styles.statsRow}>
@@ -129,12 +140,13 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 26, fontWeight: 'bold' },
   subGreeting: { fontSize: 14, color: '#666', marginTop: 2 },
   logout: { color: '#4F46E5', fontSize: 14 },
-  workoutCard: { backgroundColor: '#4F46E5', borderRadius: 16, padding: 24, marginBottom: 24 },
+  workoutCard: { backgroundColor: '#4F46E5', borderRadius: 16, padding: 24, marginBottom: 8 },
   todayLabel: { color: '#A5B4FC', fontSize: 12, fontWeight: '600', marginBottom: 8 },
   workoutTitle: { color: '#fff', fontSize: 22, fontWeight: 'bold', marginBottom: 4 },
   workoutMeta: { color: '#C7D2FE', fontSize: 14, marginBottom: 20 },
   startButton: { backgroundColor: '#fff', borderRadius: 8, padding: 14, alignItems: 'center' },
   startButtonText: { color: '#4F46E5', fontWeight: '700', fontSize: 16 },
+  regenerate: { color: '#4F46E5', textAlign: 'right', fontSize: 13, marginBottom: 16, marginTop: 4 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
   statBox: { flex: 1, backgroundColor: '#fff', borderRadius: 12, padding: 16, alignItems: 'center', marginHorizontal: 4 },
   statEmoji: { fontSize: 20 },

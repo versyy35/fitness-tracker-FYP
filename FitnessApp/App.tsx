@@ -13,6 +13,7 @@ import OnboardingScreen from './src/screens/OnboardingScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import PlanScreen from './src/screens/PlanScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import WorkoutScreen from './src/screens/WorkoutScreen';
 
 // Placeholder screens for tabs
 const ProgressScreen = () => (
@@ -71,7 +72,10 @@ function AppStack({ onboardingComplete }: { onboardingComplete: boolean }) {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {onboardingComplete ? (
-        <Stack.Screen name="Main" component={MainTabs} />
+        <>
+          <Stack.Screen name="Main" component={MainTabs} />
+          <Stack.Screen name="Workout" component={WorkoutScreen} />
+        </>
       ) : (
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       )}

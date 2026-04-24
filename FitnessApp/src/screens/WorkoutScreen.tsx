@@ -1,0 +1,189 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert
+} from 'react-native';
+import { doc, getDoc, updateDoc, increment } from 'firebase/firestore';
+import { auth, db } from '../services/firebase';
+
+export default function WorkoutScreen({ navigation }: any) {
+  const [exercises, setExercises] = useState<any[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [seconds, setSeconds] = useState(0);
+  const [restSeconds, setRestSeconds] = useState(60);
+  const [isResting, setIsResting] = useState(false);
+  const timerRef = useRef<any>(null);
+
+  useEffect(() => {
+    const fetchPlan = async () => {
+      const uid = auth.currentUser?.uid;
+      if (!uid) return;
+      const snap = await getDoc(doc(db, 'plans', uid));
+      if (snap.exists()) {
+        setExercises(snap.data().days[0].exercises);
+      }
+    };
+    fetchPlan();
+  }, []);
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      if (isResting) {
+        setRestSeconds(s => {
+          if (s <= 1) {
+            setIsResting(false);
+            setSeconds(0);
+            return 60;
+          }
+          return s - 1;
+        });
+      } else {
+        setSeconds(s => s + 1);
+      }
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [isResting]);
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const handleNext = () => {
+    if (currentIndex < exercises.length - 1) {
+      setIsResting(true);
+      setRestSeconds(60);
+      setTimeout(() => {
+        setCurrentIndex(i => i + 1);
+        setSeconds(0);
+      }, 100);
+    } else {
+      handleFinish();
+    }
+  };
+
+  const handleFinish = async () => {
+    clearInterval(timerRef.current);
+    try {
+      const uid = auth.currentUser?.uid;
+      await updateDoc(doc(db, 'users', uid!), {
+        totalWorkouts: increment(1),
+        totalSeconds: increment(seconds),
+      });
+    } catch (e) {}
+    Alert.alert('Workout Complete! 🎉', 'Great job! Keep it up!', [
+      { text: 'Done', onPress: () => navigation.navigate('Main') }
+    ]);
+  };
+
+  if (exercises.length === 0) return (
+    <View style={styles.loading}>
+      <Text>Loading workout...</Text>
+    </View>
+  );
+
+  const current = exercises[currentIndex];
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => {
+          Alert.alert('Quit Workout?', 'Your progress will be lost.', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Quit', style: 'destructive', onPress: () => navigation.navigate('Main') }
+          ]);
+        }}>
+          <Text style={styles.quit}>✕</Text>
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Push Day</Text>
+        <Text style={styles.progress}>{currentIndex + 1}/{exercises.length}</Text>
+      </View>
+
+      {/* Rest overlay */}
+      {isResting && (
+        <View style={styles.restOverlay}>
+          <Text style={styles.restTitle}>Rest Time</Text>
+          <Text style={styles.restTimer}>{formatTime(restSeconds)}</Text>
+          <TouchableOpacity style={styles.skipRest} onPress={() => setIsResting(false)}>
+            <Text style={styles.skipRestText}>Skip Rest</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {!isResting && (
+        <ScrollView contentContainerStyle={styles.content}>
+          <Text style={styles.exerciseNumber}>Exercise {currentIndex + 1} of {exercises.length}</Text>
+          <Text style={styles.exerciseName}>{current.title}</Text>
+          <Text style={styles.exerciseTarget}>{current.bodyPart}</Text>
+
+          <View style={styles.imagePlaceholder}>
+            <Text style={styles.imagePlaceholderText}>💪</Text>
+          </View>
+
+          <View style={styles.statsRow}>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>3</Text>
+              <Text style={styles.statLabel}>Sets</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>12</Text>
+              <Text style={styles.statLabel}>Reps</Text>
+            </View>
+            <View style={styles.statBox}>
+              <Text style={styles.statValue}>60s</Text>
+              <Text style={styles.statLabel}>Rest</Text>
+            </View>
+          </View>
+
+          <Text style={styles.timer}>{formatTime(seconds)}</Text>
+          <Text style={styles.timerLabel}>Time on exercise</Text>
+
+          <View style={styles.descCard}>
+            <Text style={styles.descTitle}>Instructions</Text>
+            <Text style={styles.descText}>{current.desc}</Text>
+          </View>
+        </ScrollView>
+      )}
+
+      {!isResting && (
+        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+          <Text style={styles.nextButtonText}>
+            {currentIndex < exercises.length - 1 ? 'Next Exercise →' : 'Finish Workout 🎉'}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff' },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, paddingTop: 60, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  quit: { fontSize: 20, color: '#666' },
+  headerTitle: { fontSize: 16, fontWeight: '600' },
+  progress: { fontSize: 14, color: '#666' },
+  restOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#4F46E5' },
+  restTitle: { color: '#fff', fontSize: 24, fontWeight: 'bold', marginBottom: 16 },
+  restTimer: { color: '#fff', fontSize: 72, fontWeight: 'bold', marginBottom: 32 },
+  skipRest: { backgroundColor: '#fff', paddingVertical: 12, paddingHorizontal: 32, borderRadius: 8 },
+  skipRestText: { color: '#4F46E5', fontWeight: '700', fontSize: 16 },
+  content: { padding: 24 },
+  exerciseNumber: { fontSize: 14, color: '#666', marginBottom: 4 },
+  exerciseName: { fontSize: 26, fontWeight: 'bold', marginBottom: 4 },
+  exerciseTarget: { fontSize: 16, color: '#4F46E5', marginBottom: 24 },
+  imagePlaceholder: { backgroundColor: '#f5f5f5', borderRadius: 16, height: 180, justifyContent: 'center', alignItems: 'center', marginBottom: 24 },
+  imagePlaceholderText: { fontSize: 64 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
+  statBox: { flex: 1, backgroundColor: '#f5f5f5', borderRadius: 12, padding: 16, alignItems: 'center', marginHorizontal: 4 },
+  statValue: { fontSize: 22, fontWeight: 'bold' },
+  statLabel: { fontSize: 12, color: '#666', marginTop: 2 },
+  timer: { fontSize: 48, fontWeight: 'bold', textAlign: 'center', color: '#4F46E5', marginBottom: 4 },
+  timerLabel: { fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 24 },
+  descCard: { backgroundColor: '#f5f5f5', borderRadius: 12, padding: 16 },
+  descTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8 },
+  descText: { fontSize: 14, color: '#666', lineHeight: 22 },
+  nextButton: { backgroundColor: '#4F46E5', padding: 20, margin: 24, borderRadius: 12, alignItems: 'center' },
+  nextButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+});
