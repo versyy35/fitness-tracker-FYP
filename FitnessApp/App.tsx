@@ -15,7 +15,6 @@ import PlanScreen from './src/screens/PlanScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import WorkoutScreen from './src/screens/WorkoutScreen';
 
-// Placeholder screens for tabs
 const ProgressScreen = () => (
   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
     <Text>Progress Screen</Text>
@@ -34,26 +33,10 @@ function MainTabs() {
         tabBarInactiveTintColor: '#999',
         tabBarStyle: { paddingBottom: 8, height: 60 },
       }}>
-      <Tab.Screen
-        name="Home"
-        component={HomeScreen}
-        options={{ tabBarLabel: 'Home', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🏠</Text> }}
-      />
-      <Tab.Screen
-        name="Plan"
-        component={PlanScreen}
-        options={{ tabBarLabel: 'Plan', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>📋</Text> }}
-      />
-      <Tab.Screen
-        name="Progress"
-        component={ProgressScreen}
-        options={{ tabBarLabel: 'Progress', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>📊</Text> }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ tabBarLabel: 'Profile', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>👤</Text> }}
-      />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarIcon: () => <Text style={{ fontSize: 20 }}>🏠</Text> }} />
+      <Tab.Screen name="Plan" component={PlanScreen} options={{ tabBarIcon: () => <Text style={{ fontSize: 20 }}>📋</Text> }} />
+      <Tab.Screen name="Progress" component={ProgressScreen} options={{ tabBarIcon: () => <Text style={{ fontSize: 20 }}>📊</Text> }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarIcon: () => <Text style={{ fontSize: 20 }}>👤</Text> }} />
     </Tab.Navigator>
   );
 }
@@ -68,7 +51,7 @@ function AuthStack() {
   );
 }
 
-function AppStack({ onboardingComplete }: { onboardingComplete: boolean }) {
+function AppStack({ onboardingComplete, onOnboardingComplete }: { onboardingComplete: boolean, onOnboardingComplete: () => void }) {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {onboardingComplete ? (
@@ -77,7 +60,9 @@ function AppStack({ onboardingComplete }: { onboardingComplete: boolean }) {
           <Stack.Screen name="Workout" component={WorkoutScreen} />
         </>
       ) : (
-        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen name="Onboarding">
+          {() => <OnboardingScreen onComplete={onOnboardingComplete} />}
+        </Stack.Screen>
       )}
     </Stack.Navigator>
   );
@@ -105,7 +90,14 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      {user ? <AppStack onboardingComplete={onboardingComplete} /> : <AuthStack />}
+      {user ? (
+        <AppStack
+          onboardingComplete={onboardingComplete}
+          onOnboardingComplete={() => setOnboardingComplete(true)}
+        />
+      ) : (
+        <AuthStack />
+      )}
     </NavigationContainer>
   );
 }

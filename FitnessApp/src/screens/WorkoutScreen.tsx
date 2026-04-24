@@ -50,6 +50,7 @@ export default function WorkoutScreen({ navigation }: any) {
   };
 
   const handleNext = () => {
+    if (exercises.length === 0) return;
     if (currentIndex < exercises.length - 1) {
       setIsResting(true);
       setRestSeconds(60);
@@ -86,7 +87,6 @@ export default function WorkoutScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => {
           Alert.alert('Quit Workout?', 'Your progress will be lost.', [
@@ -100,7 +100,6 @@ export default function WorkoutScreen({ navigation }: any) {
         <Text style={styles.progress}>{currentIndex + 1}/{exercises.length}</Text>
       </View>
 
-      {/* Rest overlay */}
       {isResting && (
         <View style={styles.restOverlay}>
           <Text style={styles.restTitle}>Rest Time</Text>
