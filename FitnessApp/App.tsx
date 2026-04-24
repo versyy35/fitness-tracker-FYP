@@ -11,14 +11,9 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import PlanScreen from './src/screens/PlanScreen';
 
 // Placeholder screens for tabs
-const PlanScreen = () => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-    <Text>Plan Screen</Text>
-  </View>
-);
-
 const ProgressScreen = () => (
   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
     <Text>Progress Screen</Text>
