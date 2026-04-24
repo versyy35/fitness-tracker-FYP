@@ -19,7 +19,7 @@ export default function LoginScreen({ navigation }: any) {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigation.replace('Home');
+      // no navigation needed — auth state listener handles it
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {

@@ -27,7 +27,7 @@ export default function RegisterScreen({ navigation }: any) {
         email,
         createdAt: new Date().toISOString(),
       });
-      navigation.replace('Login');
+      // no navigation needed — auth state listener handles it
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
