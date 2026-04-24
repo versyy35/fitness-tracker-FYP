@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, ActivityIndicator } from 'react-native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { View, ActivityIndicator, Text } from 'react-native';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from './src/services/firebase';
@@ -11,7 +12,60 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import HomeScreen from './src/screens/HomeScreen';
 
+// Placeholder screens for tabs
+const PlanScreen = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+    <Text>Plan Screen</Text>
+  </View>
+);
+
+const ProgressScreen = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+    <Text>Progress Screen</Text>
+  </View>
+);
+
+const ProfileScreen = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+    <Text>Profile Screen</Text>
+  </View>
+);
+
 const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+
+function MainTabs() {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: '#4F46E5',
+        tabBarInactiveTintColor: '#999',
+        tabBarStyle: { paddingBottom: 8, height: 60 },
+      }}>
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{ tabBarLabel: 'Home', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>🏠</Text> }}
+      />
+      <Tab.Screen
+        name="Plan"
+        component={PlanScreen}
+        options={{ tabBarLabel: 'Plan', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>📋</Text> }}
+      />
+      <Tab.Screen
+        name="Progress"
+        component={ProgressScreen}
+        options={{ tabBarLabel: 'Progress', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>📊</Text> }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{ tabBarLabel: 'Profile', tabBarIcon: ({ color }) => <Text style={{ fontSize: 20 }}>👤</Text> }}
+      />
+    </Tab.Navigator>
+  );
+}
 
 function AuthStack() {
   return (
@@ -27,7 +81,7 @@ function AppStack({ onboardingComplete }: { onboardingComplete: boolean }) {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {onboardingComplete ? (
-        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Main" component={MainTabs} />
       ) : (
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       )}
