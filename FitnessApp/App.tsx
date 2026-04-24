@@ -14,12 +14,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import PlanScreen from './src/screens/PlanScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import WorkoutScreen from './src/screens/WorkoutScreen';
-
-const ProgressScreen = () => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-    <Text>Progress Screen</Text>
-  </View>
-);
+import ProgressScreen from './src/screens/ProgressScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();

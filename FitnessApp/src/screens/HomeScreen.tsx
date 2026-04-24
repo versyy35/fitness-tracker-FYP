@@ -53,8 +53,11 @@ export default function HomeScreen({ navigation }: any) {
       setLoading(false);
     }
   };
-
-  const todayPlan = plan[0];
+  
+  const totalWorkouts = userData?.totalWorkouts ?? 0;
+  const daysPerWeek = userData?.daysPerWeek ?? 3;
+  const todayIndex = totalWorkouts % daysPerWeek;
+  const todayPlan = plan[todayIndex];
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>

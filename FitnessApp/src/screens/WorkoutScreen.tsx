@@ -19,7 +19,11 @@ export default function WorkoutScreen({ navigation }: any) {
       if (!uid) return;
       const snap = await getDoc(doc(db, 'plans', uid));
       if (snap.exists()) {
-        setExercises(snap.data().days[0].exercises);
+        const userData = await getDoc(doc(db, 'users', uid));
+        const totalWorkouts = userData.data()?.totalWorkouts ?? 0;
+        const daysPerWeek = userData.data()?.daysPerWeek ?? 3;
+        const todayIndex = totalWorkouts % daysPerWeek;
+        setExercises(snap.data().days[todayIndex].exercises);
       }
     };
     fetchPlan();
@@ -84,6 +88,7 @@ export default function WorkoutScreen({ navigation }: any) {
   );
 
   const current = exercises[currentIndex];
+  if (!current) return <View style={styles.loading}><Text>Loading...</Text></View>;
 
   return (
     <View style={styles.container}>
