@@ -54,10 +54,13 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
   
+  const today = new Date().toISOString().split('T')[0];
+  const workoutDoneToday = userData?.lastWorkoutDate === today;
   const totalWorkouts = userData?.totalWorkouts ?? 0;
   const daysPerWeek = userData?.daysPerWeek ?? 3;
   const todayIndex = totalWorkouts % daysPerWeek;
   const todayPlan = plan[todayIndex];
+  const cardLabel = workoutDoneToday ? 'NEXT WORKOUT' : 'TODAY\'S WORKOUT';
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -74,7 +77,7 @@ export default function HomeScreen({ navigation }: any) {
 
       {/* Today's Workout Card */}
       <View style={styles.workoutCard}>
-        <Text style={styles.todayLabel}>TODAY'S WORKOUT</Text>
+        <Text style={styles.todayLabel}>{cardLabel}</Text>
         <Text style={styles.workoutTitle}>
           {todayPlan ? todayPlan.focus : 'No plan generated yet'}
         </Text>
@@ -84,9 +87,15 @@ export default function HomeScreen({ navigation }: any) {
             : 'Tap below to generate your personalized plan'}
         </Text>
         {todayPlan ? (
-          <TouchableOpacity style={styles.startButton} onPress={() => navigation.navigate('Workout')}>
-            <Text style={styles.startButtonText}>Start Workout</Text>
-          </TouchableOpacity>
+          workoutDoneToday ? (
+            <View style={styles.startButton}>
+              <Text style={styles.startButtonText}>✓ Workout Done Today</Text>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.startButton} onPress={() => navigation.navigate('Workout')}>
+              <Text style={styles.startButtonText}>Start Workout</Text>
+            </TouchableOpacity>
+          )
         ) : (
           <TouchableOpacity style={styles.startButton} onPress={handleGeneratePlan} disabled={loading}>
             {loading

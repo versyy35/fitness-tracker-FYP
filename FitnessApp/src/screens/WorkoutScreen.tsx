@@ -8,6 +8,7 @@ import { auth, db } from '../services/firebase';
 export default function WorkoutScreen({ navigation }: any) {
   const [exercises, setExercises] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [completedIndices, setCompletedIndices] = useState<number[]>([]);
   const [seconds, setSeconds] = useState(0);
   const [restSeconds, setRestSeconds] = useState(60);
   const [isResting, setIsResting] = useState(false);
@@ -55,6 +56,7 @@ export default function WorkoutScreen({ navigation }: any) {
 
   const handleNext = () => {
     if (exercises.length === 0) return;
+    setCompletedIndices(prev => [...prev, currentIndex]);
     if (currentIndex < exercises.length - 1) {
       setIsResting(true);
       setRestSeconds(60);
@@ -69,16 +71,17 @@ export default function WorkoutScreen({ navigation }: any) {
 
   const handleFinish = async () => {
     clearInterval(timerRef.current);
-    try {
-      const uid = auth.currentUser?.uid;
-      await updateDoc(doc(db, 'users', uid!), {
+  try {
+    const uid = auth.currentUser?.uid;
+    const today = new Date().toISOString().split('T')[0]; // "2026-04-25"
+    await updateDoc(doc(db, 'users', uid!), {
         totalWorkouts: increment(1),
         totalSeconds: increment(seconds),
+        xp: increment(50),
+        lastWorkoutDate: today,
       });
     } catch (e) {}
-    Alert.alert('Workout Complete! 🎉', 'Great job! Keep it up!', [
-      { text: 'Done', onPress: () => navigation.navigate('Main') }
-    ]);
+    navigation.navigate('Main');
   };
 
   if (exercises.length === 0) return (
@@ -92,19 +95,22 @@ export default function WorkoutScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => {
-          Alert.alert('Quit Workout?', 'Your progress will be lost.', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Quit', style: 'destructive', onPress: () => navigation.navigate('Main') }
-          ]);
-        }}>
-          <Text style={styles.quit}>✕</Text>
+        <TouchableOpacity
+          style={styles.quitButton}
+          onPress={() => {
+            Alert.alert('Quit Workout?', 'Your progress will be lost.', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Quit', style: 'destructive', onPress: () => navigation.navigate('Main') }
+            ]);
+          }}>
+          <Text style={styles.quitButtonText}>Quit Workout</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Push Day</Text>
         <Text style={styles.progress}>{currentIndex + 1}/{exercises.length}</Text>
       </View>
 
+      {/* Rest overlay */}
       {isResting && (
         <View style={styles.restOverlay}>
           <Text style={styles.restTitle}>Rest Time</Text>
@@ -116,46 +122,66 @@ export default function WorkoutScreen({ navigation }: any) {
       )}
 
       {!isResting && (
-        <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.exerciseNumber}>Exercise {currentIndex + 1} of {exercises.length}</Text>
-          <Text style={styles.exerciseName}>{current.title}</Text>
-          <Text style={styles.exerciseTarget}>{current.bodyPart}</Text>
+        <>
+          <ScrollView contentContainerStyle={styles.content}>
+            {/* Exercise Progress List */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.progressList}>
+              {exercises.map((ex, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.progressDot,
+                    i === currentIndex && styles.progressDotActive,
+                    completedIndices.includes(i) && styles.progressDotDone,
+                  ]}>
+                  <Text style={styles.progressDotText}>
+                    {completedIndices.includes(i) ? '✓' : i + 1}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
 
-          <View style={styles.imagePlaceholder}>
-            <Text style={styles.imagePlaceholderText}>💪</Text>
-          </View>
+            <Text style={styles.exerciseNumber}>Exercise {currentIndex + 1} of {exercises.length}</Text>
+            <Text style={styles.exerciseName}>{current.title}</Text>
+            <Text style={styles.exerciseTarget}>{current.bodyPart}</Text>
 
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>3</Text>
-              <Text style={styles.statLabel}>Sets</Text>
+            <View style={styles.imagePlaceholder}>
+              <Text style={styles.imagePlaceholderText}>💪</Text>
             </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>12</Text>
-              <Text style={styles.statLabel}>Reps</Text>
+
+            <View style={styles.statsRow}>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>3</Text>
+                <Text style={styles.statLabel}>Sets</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>12</Text>
+                <Text style={styles.statLabel}>Reps</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>60s</Text>
+                <Text style={styles.statLabel}>Rest</Text>
+              </View>
             </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>60s</Text>
-              <Text style={styles.statLabel}>Rest</Text>
+
+            <Text style={styles.timer}>{formatTime(seconds)}</Text>
+            <Text style={styles.timerLabel}>Time on exercise</Text>
+
+            <View style={styles.descCard}>
+              <Text style={styles.descTitle}>Instructions</Text>
+              <Text style={styles.descText}>{current.desc}</Text>
             </View>
-          </View>
+          </ScrollView>
 
-          <Text style={styles.timer}>{formatTime(seconds)}</Text>
-          <Text style={styles.timerLabel}>Time on exercise</Text>
-
-          <View style={styles.descCard}>
-            <Text style={styles.descTitle}>Instructions</Text>
-            <Text style={styles.descText}>{current.desc}</Text>
-          </View>
-        </ScrollView>
-      )}
-
-      {!isResting && (
-        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-          <Text style={styles.nextButtonText}>
-            {currentIndex < exercises.length - 1 ? 'Next Exercise →' : 'Finish Workout 🎉'}
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
+            <Text style={styles.nextButtonText}>
+              {currentIndex < exercises.length - 1 ? 'Next Exercise →' : 'Finish Workout 🎉'}
+            </Text>
+          </TouchableOpacity>
+        </>
       )}
     </View>
   );
@@ -165,8 +191,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, paddingTop: 60, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  quit: { fontSize: 20, color: '#666' },
-  headerTitle: { fontSize: 16, fontWeight: '600' },
+  quitButton: { backgroundColor: '#EF4444', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8 },
+  quitButtonText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   progress: { fontSize: 14, color: '#666' },
   restOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#4F46E5' },
   restTitle: { color: '#fff', fontSize: 24, fontWeight: 'bold', marginBottom: 16 },
@@ -174,6 +200,11 @@ const styles = StyleSheet.create({
   skipRest: { backgroundColor: '#fff', paddingVertical: 12, paddingHorizontal: 32, borderRadius: 8 },
   skipRestText: { color: '#4F46E5', fontWeight: '700', fontSize: 16 },
   content: { padding: 24 },
+  progressList: { marginBottom: 20 },
+  progressDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center', marginRight: 8 },
+  progressDotActive: { backgroundColor: '#4F46E5' },
+  progressDotDone: { backgroundColor: '#22C55E' },
+  progressDotText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   exerciseNumber: { fontSize: 14, color: '#666', marginBottom: 4 },
   exerciseName: { fontSize: 26, fontWeight: 'bold', marginBottom: 4 },
   exerciseTarget: { fontSize: 16, color: '#4F46E5', marginBottom: 24 },
