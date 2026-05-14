@@ -116,15 +116,17 @@ export default function HomeScreen({ navigation }: any) {
       <View style={styles.statsRow}>
         <View style={styles.statBox}>
           <Text style={styles.statEmoji}>🔥</Text>
-          <Text style={styles.statValue}>0</Text>
+          <Text style={styles.statValue}>{userData?.streak ?? 0}</Text>
           <Text style={styles.statLabel}>Streak</Text>
         </View>
         <View style={styles.statBox}>
-          <Text style={styles.statValue}>0</Text>
+          <Text style={styles.statValue}>{userData?.totalWorkouts ?? 0}</Text>
           <Text style={styles.statLabel}>Workouts</Text>
         </View>
         <View style={styles.statBox}>
-          <Text style={styles.statValue}>0h</Text>
+          <Text style={styles.statValue}>
+            {userData?.totalSeconds ? `${Math.floor(userData.totalSeconds / 3600)}h` : '0h'}
+          </Text>
           <Text style={styles.statLabel}>Total Time</Text>
         </View>
       </View>

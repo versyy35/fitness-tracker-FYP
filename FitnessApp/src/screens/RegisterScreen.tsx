@@ -26,6 +26,11 @@ export default function RegisterScreen({ navigation }: any) {
         name,
         email,
         createdAt: new Date().toISOString(),
+        totalWorkouts: 0,
+        totalSeconds: 0,
+        xp: 0,
+        streak: 0,
+        weeklyWorkouts: 0,
       });
       // no navigation needed — auth state listener handles it
     } catch (error: any) {

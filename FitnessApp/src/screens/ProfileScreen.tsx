@@ -6,6 +6,13 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { signOut } from 'firebase/auth';
 
+const getLevelInfo = (xp: number) => {
+  if (xp >= 1500) return { level: 'Legend', emoji: '👑', next: null, current: 1500 };
+  if (xp >= 700) return { level: 'Champion', emoji: '🥇', next: 1500, current: 700 };
+  if (xp >= 300) return { level: 'Athlete', emoji: '🥈', next: 700, current: 300 };
+  return { level: 'Rookie', emoji: '🥉', next: 300, current: 0 };
+};
+
 export default function ProfileScreen() {
   const [userData, setUserData] = useState<any>(null);
 
@@ -26,6 +33,8 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const totalHours = userData?.totalSeconds ? Math.floor(userData.totalSeconds / 3600) : 0;
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* Avatar */}
@@ -42,16 +51,46 @@ export default function ProfileScreen() {
       {/* Stats */}
       <View style={styles.statsRow}>
         <View style={styles.statBox}>
-          <Text style={styles.statValue}>0</Text>
+          <Text style={styles.statValue}>{userData?.totalWorkouts ?? 0}</Text>
           <Text style={styles.statLabel}>Workouts</Text>
         </View>
         <View style={styles.statBox}>
-          <Text style={styles.statValue}>0</Text>
+          <Text style={styles.statValue}>{userData?.streak ?? 0}</Text>
           <Text style={styles.statLabel}>Streak</Text>
         </View>
         <View style={styles.statBox}>
-          <Text style={styles.statValue}>0h</Text>
+          <Text style={styles.statValue}>{totalHours}h</Text>
           <Text style={styles.statLabel}>Total Time</Text>
+        </View>
+      </View>
+
+      {/* XP Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Level & XP</Text>
+        <View style={styles.xpCard}>
+          {(() => {
+            const xp = userData?.xp ?? 0;
+            const info = getLevelInfo(xp);
+            const progress = info.next
+              ? ((xp - info.current) / (info.next - info.current)) * 100
+              : 100;
+            return (
+              <>
+                <View style={styles.xpHeader}>
+                  <Text style={styles.xpLevel}>{info.emoji} {info.level}</Text>
+                  <Text style={styles.xpValue}>{xp} XP</Text>
+                </View>
+                <View style={styles.progressBarBg}>
+                  <View style={[styles.progressBarFill, { width: `${progress}%` }]} />
+                </View>
+                <Text style={styles.xpNext}>
+                  {info.next
+                    ? `${info.next - xp} XP to next level`
+                    : 'Max level reached! 👑'}
+                </Text>
+              </>
+            );
+          })()}
         </View>
       </View>
 
@@ -96,6 +135,13 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 12, color: '#666', marginTop: 2 },
   section: { marginBottom: 24 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
+  xpCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16 },
+  xpHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  xpLevel: { fontSize: 18, fontWeight: 'bold' },
+  xpValue: { fontSize: 16, fontWeight: '600', color: '#4F46E5' },
+  progressBarBg: { height: 8, backgroundColor: '#f0f0f0', borderRadius: 4, marginBottom: 8 },
+  progressBarFill: { height: 8, backgroundColor: '#4F46E5', borderRadius: 4 },
+  xpNext: { fontSize: 13, color: '#666' },
   infoCard: { backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 16 },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 14 },
   infoRowBorder: { borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },

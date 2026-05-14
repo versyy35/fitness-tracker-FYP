@@ -71,24 +71,35 @@ export default function WorkoutScreen({ navigation }: any) {
 
   const handleFinish = async () => {
     clearInterval(timerRef.current);
-  try {
-    const uid = auth.currentUser?.uid;
-    const today = new Date().toISOString().split('T')[0]; // "2026-04-25"
-    await updateDoc(doc(db, 'users', uid!), {
+    try {
+      const uid = auth.currentUser?.uid;
+      const today = new Date().toISOString().split('T')[0];
+      const userSnap = await getDoc(doc(db, 'users', uid!));
+      const userData = userSnap.data();
+
+      const daysPerWeek = userData?.daysPerWeek ?? 3;
+      const weeklyWorkouts = (userData?.weeklyWorkouts ?? 0) + 1;
+      let bonusXP = 0;
+      let newStreak = userData?.streak ?? 0;
+      let newWeeklyWorkouts = weeklyWorkouts;
+
+      if (weeklyWorkouts >= daysPerWeek) {
+        bonusXP = 100;
+        newStreak = newStreak + 1;
+        newWeeklyWorkouts = 0;
+      }
+
+      await updateDoc(doc(db, 'users', uid!), {
         totalWorkouts: increment(1),
         totalSeconds: increment(seconds),
-        xp: increment(50),
+        xp: (userData?.xp ?? 0) + 50 + bonusXP,
         lastWorkoutDate: today,
+        weeklyWorkouts: newWeeklyWorkouts,
+        streak: newStreak,
       });
     } catch (e) {}
     navigation.navigate('Main');
   };
-
-  if (exercises.length === 0) return (
-    <View style={styles.loading}>
-      <Text>Loading workout...</Text>
-    </View>
-  );
 
   const current = exercises[currentIndex];
   if (!current) return <View style={styles.loading}><Text>Loading...</Text></View>;
