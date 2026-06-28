@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert
 } from 'react-native';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, updateDoc, doc, getDoc, setDoc, query, where } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '../services/firebase';
 import { generateWorkoutPlan } from '../utils/ilpAlgo';
@@ -54,6 +54,31 @@ export default function HomeScreen({ navigation }: any) {
     }
   };
   
+const [notification, setNotification] = useState<any>(null);
+
+useEffect(() => {
+  const fetchNotification = async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const snap = await getDocs(collection(db, 'notifications', uid, 'messages'));
+    const unread = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter((n: any) => !n.read)
+      .sort((a: any, b: any) => b.sentAt.localeCompare(a.sentAt));
+    if (unread.length > 0) setNotification(unread[0]);
+  };
+  fetchNotification();
+}, []);
+
+const dismissNotification = async () => {
+  const uid = auth.currentUser?.uid;
+  if (!uid || !notification) return;
+  await updateDoc(doc(db, 'notifications', uid, 'messages', notification.id), {
+    read: true,
+  });
+  setNotification(null);
+};
+
   const today = new Date().toISOString().split('T')[0];
   const workoutDoneToday = userData?.lastWorkoutDate === today;
   const totalWorkouts = userData?.totalWorkouts ?? 0;
@@ -64,6 +89,14 @@ export default function HomeScreen({ navigation }: any) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {notification && (
+        <View style={styles.notificationBanner}>
+          <Text style={styles.notificationText}>🔔 {notification.message}</Text>
+          <TouchableOpacity onPress={dismissNotification}>
+            <Text style={styles.notificationDismiss}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       {/* Header */}
       <View style={styles.header}>
         <View>
@@ -171,4 +204,7 @@ const styles = StyleSheet.create({
   exerciseCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10 },
   exerciseName: { fontSize: 15, fontWeight: '600', marginBottom: 4 },
   exerciseMeta: { fontSize: 13, color: '#666' },
+  notificationBanner: { backgroundColor: '#4F46E5', borderRadius: 12, padding: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center' },
+  notificationText: { flex: 1, color: '#fff', fontSize: 13, lineHeight: 18 },
+  notificationDismiss: { color: '#fff', fontSize: 18, marginLeft: 12 },
 });
