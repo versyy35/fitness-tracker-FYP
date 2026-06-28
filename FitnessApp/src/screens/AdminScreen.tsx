@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, ActivityIndicator
+  TouchableOpacity, ActivityIndicator, Alert
 } from 'react-native';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { signOut } from 'firebase/auth';
 
@@ -11,7 +11,6 @@ export default function AdminScreen() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const today = new Date().toISOString().split('T')[0];
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
     .toISOString().split('T')[0];
 
@@ -31,6 +30,19 @@ export default function AdminScreen() {
   const inactiveUsers = users.filter((u: any) =>
     !u.lastWorkoutDate || u.lastWorkoutDate < sevenDaysAgo
   );
+
+  const sendReminder = async (userId: string, userName: string) => {
+    try {
+      await addDoc(collection(db, 'notifications', userId, 'messages'), {
+        message: `Hey ${userName}! 💪 Don't forget to keep up with your workout plan. You've got this!`,
+        sentAt: new Date().toISOString(),
+        read: false,
+      });
+      Alert.alert('Sent!', `Reminder sent to ${userName}`);
+    } catch (e) {
+      Alert.alert('Error', 'Failed to send reminder');
+    }
+  };
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
 
@@ -64,20 +76,29 @@ export default function AdminScreen() {
       <Text style={styles.sectionTitle}>🟢 Active Users (last 7 days)</Text>
       {activeUsers.length === 0 && <Text style={styles.empty}>No active users</Text>}
       {activeUsers.map((u: any) => (
-        <UserCard key={u.id} user={u} active />
+        <UserCard key={u.id} user={u} active={true} />
       ))}
 
       {/* Inactive Users */}
       <Text style={styles.sectionTitle}>🔴 Inactive Users</Text>
       {inactiveUsers.length === 0 && <Text style={styles.empty}>No inactive users</Text>}
       {inactiveUsers.map((u: any) => (
-        <UserCard key={u.id} user={u} active={false} />
+        <UserCard
+          key={u.id}
+          user={u}
+          active={false}
+          onRemind={() => sendReminder(u.id, u.name)}
+        />
       ))}
     </ScrollView>
   );
 }
 
-const UserCard = ({ user, active }: { user: any; active: boolean }) => (
+const UserCard = ({ user, active, onRemind }: {
+  user: any;
+  active: boolean;
+  onRemind?: () => void;
+}) => (
   <View style={[styles.userCard, active ? styles.userCardActive : styles.userCardInactive]}>
     <View style={styles.userRow}>
       <View style={styles.avatar}>
@@ -96,9 +117,12 @@ const UserCard = ({ user, active }: { user: any; active: boolean }) => (
       <Text style={styles.userStat}>⚡ {user.xp ?? 0} XP</Text>
       <Text style={styles.userStat}>🎯 {user.goal ?? '-'}</Text>
     </View>
-    <Text style={styles.lastSeen}>
-      Last workout: {user.lastWorkoutDate ?? 'Never'}
-    </Text>
+    <Text style={styles.lastSeen}>Last workout: {user.lastWorkoutDate ?? 'Never'}</Text>
+    {!active && onRemind && (
+      <TouchableOpacity style={styles.remindButton} onPress={onRemind}>
+        <Text style={styles.remindButtonText}>Send Reminder 🔔</Text>
+      </TouchableOpacity>
+    )}
   </View>
 );
 
@@ -132,4 +156,6 @@ const styles = StyleSheet.create({
   userStats: { flexDirection: 'row', gap: 12, marginBottom: 6 },
   userStat: { fontSize: 12, color: '#555' },
   lastSeen: { fontSize: 11, color: '#999' },
+  remindButton: { backgroundColor: '#4F46E5', borderRadius: 8, padding: 10, alignItems: 'center', marginTop: 10 },
+  remindButtonText: { color: '#fff', fontWeight: '600', fontSize: 13 },
 });
