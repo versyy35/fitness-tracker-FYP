@@ -13,8 +13,9 @@ import OnboardingScreen from './src/screens/OnboardingScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import PlanScreen from './src/screens/PlanScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
-import WorkoutScreen from './src/screens/WorkoutScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
+import WorkoutScreen from './src/screens/WorkoutScreen';
+import AdminScreen from './src/screens/AdminScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -46,14 +47,22 @@ function AuthStack() {
   );
 }
 
-function AppStack({ onboardingComplete, onOnboardingComplete }: { onboardingComplete: boolean, onOnboardingComplete: () => void }) {
+function AppStack({ onboardingComplete, onOnboardingComplete, isAdmin }: {
+  onboardingComplete: boolean;
+  onOnboardingComplete: () => void;
+  isAdmin: boolean;
+}) {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {onboardingComplete ? (
-        <>
-          <Stack.Screen name="Main" component={MainTabs} />
-          <Stack.Screen name="Workout" component={WorkoutScreen} />
-        </>
+        isAdmin ? (
+          <Stack.Screen name="Admin" component={AdminScreen} />
+        ) : (
+          <>
+            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen name="Workout" component={WorkoutScreen} />
+          </>
+        )
       ) : (
         <Stack.Screen name="Onboarding">
           {() => <OnboardingScreen onComplete={onOnboardingComplete} />}
@@ -66,6 +75,7 @@ function AppStack({ onboardingComplete, onOnboardingComplete }: { onboardingComp
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [onboardingComplete, setOnboardingComplete] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -74,6 +84,7 @@ export default function App() {
         const userDoc = await getDoc(doc(db, 'users', u.uid));
         const data = userDoc.data();
         setOnboardingComplete(data?.onboardingComplete === true);
+        setIsAdmin(data?.isAdmin === true);
       }
       setUser(u);
       setLoading(false);
@@ -89,6 +100,7 @@ export default function App() {
         <AppStack
           onboardingComplete={onboardingComplete}
           onOnboardingComplete={() => setOnboardingComplete(true)}
+          isAdmin={isAdmin}
         />
       ) : (
         <AuthStack />
