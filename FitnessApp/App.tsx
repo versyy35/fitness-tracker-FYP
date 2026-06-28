@@ -16,6 +16,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
 import WorkoutScreen from './src/screens/WorkoutScreen';
 import AdminScreen from './src/screens/AdminScreen';
+import ExerciseVideoScreen from './src/screens/ExerciseVideoScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -61,6 +62,7 @@ function AppStack({ onboardingComplete, onOnboardingComplete, isAdmin }: {
           <>
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen name="Workout" component={WorkoutScreen} />
+            <Stack.Screen name="ExerciseVideo" component={ExerciseVideoScreen} />
           </>
         )
       ) : (

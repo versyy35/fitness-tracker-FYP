@@ -185,6 +185,12 @@ export default function WorkoutScreen({ navigation }: any) {
               <Text style={styles.descTitle}>Instructions</Text>
               <Text style={styles.descText}>{current.desc}</Text>
             </View>
+
+            <TouchableOpacity
+              style={styles.videoButton}
+              onPress={() => navigation.navigate('ExerciseVideo', { exerciseName: current.title })}>
+              <Text style={styles.videoButtonText}>▶ Watch Tutorial on YouTube</Text>
+            </TouchableOpacity>
           </ScrollView>
 
           <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
@@ -232,4 +238,6 @@ const styles = StyleSheet.create({
   descText: { fontSize: 14, color: '#666', lineHeight: 22 },
   nextButton: { backgroundColor: '#4F46E5', padding: 20, margin: 24, borderRadius: 12, alignItems: 'center' },
   nextButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  videoButton: { backgroundColor: '#EF4444', borderRadius: 12, padding: 14, alignItems: 'center', marginTop: 12 },
+  videoButtonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
