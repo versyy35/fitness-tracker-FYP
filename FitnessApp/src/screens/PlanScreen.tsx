@@ -4,14 +4,19 @@ import {
 } from 'react-native';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
+
 
 export default function PlanScreen() {
   const [plan, setPlan] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(0);
 
-  useEffect(() => {
+  useFocusEffect(
+  useCallback(() => {
     const fetchPlan = async () => {
+      setLoading(true);
       const uid = auth.currentUser?.uid;
       if (!uid) return;
       const snap = await getDoc(doc(db, 'plans', uid));
@@ -21,7 +26,8 @@ export default function PlanScreen() {
       setLoading(false);
     };
     fetchPlan();
-  }, []);
+  }, [])
+);
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
 
