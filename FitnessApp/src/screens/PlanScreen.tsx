@@ -1,33 +1,29 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
+  ActivityIndicator, Modal, Pressable
 } from 'react-native';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback } from 'react';
 
+export default function PlanScreen({ navigation }: any) {
+  const [plan, setPlan]           = useState<any[]>([]);
+  const [loading, setLoading]     = useState(true);
+  const [selectedDay, setSelectedDay]           = useState(0);
+  const [selectedExercise, setSelectedExercise] = useState<any>(null);
 
-export default function PlanScreen() {
-  const [plan, setPlan] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState(0);
-
-  useFocusEffect(
-  useCallback(() => {
+  useFocusEffect(useCallback(() => {
     const fetchPlan = async () => {
       setLoading(true);
       const uid = auth.currentUser?.uid;
       if (!uid) return;
       const snap = await getDoc(doc(db, 'plans', uid));
-      if (snap.exists()) {
-        setPlan(snap.data().days);
-      }
+      if (snap.exists()) setPlan(snap.data().days);
       setLoading(false);
     };
     fetchPlan();
-  }, [])
-);
+  }, []));
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
 
@@ -72,7 +68,10 @@ export default function PlanScreen() {
       {/* Exercise List */}
       <ScrollView style={styles.exerciseList}>
         {currentDay.exercises.map((ex: any, i: number) => (
-          <View key={i} style={styles.exerciseCard}>
+          <TouchableOpacity
+            key={i}
+            style={styles.exerciseCard}
+            onPress={() => setSelectedExercise(ex)}>
             <View style={styles.exerciseIndex}>
               <Text style={styles.exerciseIndexText}>{i + 1}</Text>
             </View>
@@ -83,34 +82,127 @@ export default function PlanScreen() {
                 {ex.sets ?? 3} sets × {ex.reps ?? 12} reps · {ex.rest ?? 60}s rest
               </Text>
             </View>
-          </View>
+            <Text style={styles.exerciseChevron}>›</Text>
+          </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {/* Exercise Preview Modal */}
+      <ExerciseModal
+        exercise={selectedExercise}
+        onClose={() => setSelectedExercise(null)}
+        onYouTube={() => {
+          setSelectedExercise(null);
+          navigation.navigate('ExerciseVideo', { exerciseName: selectedExercise?.title });
+        }}
+      />
     </View>
   );
 }
 
+function ExerciseModal({ exercise, onClose, onYouTube }: {
+  exercise: any;
+  onClose: () => void;
+  onYouTube: () => void;
+}) {
+  if (!exercise) return null;
+  return (
+    <Modal visible={!!exercise} animationType="slide" transparent onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Pressable style={styles.modalSheet} onPress={() => {}}>
+
+          <View style={styles.modalHandle} />
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <Text style={styles.modalTitle}>{exercise.title}</Text>
+
+            <View style={styles.tagRow}>
+              <View style={styles.tag}><Text style={styles.tagText}>{exercise.bodyPart}</Text></View>
+              <View style={styles.tag}><Text style={styles.tagText}>{exercise.equipment}</Text></View>
+              <View style={[styles.tag, styles.tagLevel]}>
+                <Text style={[styles.tagText, styles.tagLevelText]}>{exercise.level}</Text>
+              </View>
+            </View>
+
+            <View style={styles.modalStatsRow}>
+              <View style={styles.modalStatBox}>
+                <Text style={styles.modalStatValue}>{exercise.sets ?? 3}</Text>
+                <Text style={styles.modalStatLabel}>Sets</Text>
+              </View>
+              <View style={styles.modalStatBox}>
+                <Text style={styles.modalStatValue}>{exercise.reps ?? 12}</Text>
+                <Text style={styles.modalStatLabel}>Reps</Text>
+              </View>
+              <View style={styles.modalStatBox}>
+                <Text style={styles.modalStatValue}>{exercise.rest ?? 60}s</Text>
+                <Text style={styles.modalStatLabel}>Rest</Text>
+              </View>
+            </View>
+
+            {exercise.desc ? (
+              <>
+                <Text style={styles.modalSectionTitle}>Instructions</Text>
+                <Text style={styles.modalDesc}>{exercise.desc}</Text>
+              </>
+            ) : null}
+
+            <TouchableOpacity style={styles.youtubeButton} onPress={onYouTube}>
+              <Text style={styles.youtubeButtonText}>▶ Watch Tutorial on YouTube</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </ScrollView>
+
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
-  container:            { flex: 1, backgroundColor: '#f5f5f5', paddingTop: 60 },
-  title:                { fontSize: 26, fontWeight: 'bold', paddingHorizontal: 24, marginBottom: 16 },
-  dayScroll:            { paddingHorizontal: 24, marginBottom: 16, flexGrow: 0, height: 56 },
-  dayTab:               { paddingVertical: 8, paddingHorizontal: 20, borderRadius: 20, backgroundColor: '#fff', marginRight: 10, borderWidth: 1.5, borderColor: '#ddd', height: 40, justifyContent: 'center', alignItems: 'center' },
-  dayTabActive:         { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
-  dayTabText:           { fontSize: 14, fontWeight: '600', color: '#666' },
-  dayTabTextActive:     { color: '#fff' },
-  focusCard:            { marginHorizontal: 24, backgroundColor: '#4F46E5', borderRadius: 16, padding: 20, marginBottom: 16 },
-  focusLabel:           { color: '#A5B4FC', fontSize: 12, fontWeight: '600', marginBottom: 4 },
-  focusTitle:           { color: '#fff', fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
-  focusMeta:            { color: '#C7D2FE', fontSize: 14 },
-  exerciseList:         { paddingHorizontal: 24 },
-  exerciseCard:         { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10, flexDirection: 'row', alignItems: 'center' },
-  exerciseIndex:        { width: 32, height: 32, borderRadius: 16, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  exerciseIndexText:    { color: '#4F46E5', fontWeight: 'bold', fontSize: 14 },
-  exerciseInfo:         { flex: 1 },
-  exerciseName:         { fontSize: 15, fontWeight: '600', marginBottom: 2 },
-  exerciseMeta:         { fontSize: 13, color: '#666' },
-  exerciseSetsReps:     { fontSize: 12, color: '#4F46E5', fontWeight: '600', marginTop: 4 },
-  empty:                { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText:            { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
-  emptySubtext:         { fontSize: 14, color: '#666' },
+  container:          { flex: 1, backgroundColor: '#f5f5f5', paddingTop: 60 },
+  title:              { fontSize: 26, fontWeight: 'bold', paddingHorizontal: 24, marginBottom: 16 },
+  dayScroll:          { paddingHorizontal: 24, marginBottom: 16, flexGrow: 0, height: 56 },
+  dayTab:             { paddingVertical: 8, paddingHorizontal: 20, borderRadius: 20, backgroundColor: '#fff', marginRight: 10, borderWidth: 1.5, borderColor: '#ddd', height: 40, justifyContent: 'center', alignItems: 'center' },
+  dayTabActive:       { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
+  dayTabText:         { fontSize: 14, fontWeight: '600', color: '#666' },
+  dayTabTextActive:   { color: '#fff' },
+  focusCard:          { marginHorizontal: 24, backgroundColor: '#4F46E5', borderRadius: 16, padding: 20, marginBottom: 16 },
+  focusLabel:         { color: '#A5B4FC', fontSize: 12, fontWeight: '600', marginBottom: 4 },
+  focusTitle:         { color: '#fff', fontSize: 20, fontWeight: 'bold', marginBottom: 4 },
+  focusMeta:          { color: '#C7D2FE', fontSize: 14 },
+  exerciseList:       { paddingHorizontal: 24 },
+  exerciseCard:       { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10, flexDirection: 'row', alignItems: 'center' },
+  exerciseIndex:      { width: 32, height: 32, borderRadius: 16, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  exerciseIndexText:  { color: '#4F46E5', fontWeight: 'bold', fontSize: 14 },
+  exerciseInfo:       { flex: 1 },
+  exerciseName:       { fontSize: 15, fontWeight: '600', marginBottom: 2 },
+  exerciseMeta:       { fontSize: 13, color: '#666' },
+  exerciseSetsReps:   { fontSize: 12, color: '#4F46E5', fontWeight: '600', marginTop: 4 },
+  exerciseChevron:    { fontSize: 22, color: '#ccc', marginLeft: 8 },
+  empty:              { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyText:          { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
+  emptySubtext:       { fontSize: 14, color: '#666' },
+  // Modal
+  modalOverlay:       { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalSheet:         { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '85%' },
+  modalHandle:        { width: 40, height: 4, backgroundColor: '#ddd', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+  modalTitle:         { fontSize: 22, fontWeight: '700', color: '#111', marginBottom: 12 },
+  tagRow:             { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
+  tag:                { backgroundColor: '#EEF2FF', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  tagText:            { fontSize: 13, color: '#4F46E5', fontWeight: '600' },
+  tagLevel:           { backgroundColor: '#F0FDF4' },
+  tagLevelText:       { color: '#16A34A' },
+  modalStatsRow:      { flexDirection: 'row', backgroundColor: '#F8FAFC', borderRadius: 12, padding: 16, marginBottom: 20 },
+  modalStatBox:       { flex: 1, alignItems: 'center' },
+  modalStatValue:     { fontSize: 24, fontWeight: '800', color: '#111' },
+  modalStatLabel:     { fontSize: 12, color: '#666', marginTop: 2 },
+  modalSectionTitle:  { fontSize: 15, fontWeight: '700', color: '#111', marginBottom: 8 },
+  modalDesc:          { fontSize: 14, color: '#444', lineHeight: 22, marginBottom: 24 },
+  youtubeButton:      { backgroundColor: '#EF4444', borderRadius: 10, padding: 14, alignItems: 'center', marginBottom: 12 },
+  youtubeButtonText:  { color: '#fff', fontWeight: '700', fontSize: 15 },
+  closeButton:        { borderRadius: 10, padding: 14, alignItems: 'center', marginBottom: 8 },
+  closeButtonText:    { color: '#666', fontWeight: '600', fontSize: 15 },
 });
