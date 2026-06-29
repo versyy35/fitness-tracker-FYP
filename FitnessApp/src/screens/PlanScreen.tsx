@@ -115,7 +115,7 @@ export default function PlanScreen({ navigation }: any) {
 
       {/* Focus Card */}
       <View style={styles.focusCard}>
-        <View>
+        <View style={{ flex: 1, marginRight: 12 }}>
           <Text style={styles.focusLabel}>FOCUS</Text>
           <Text style={styles.focusTitle}>{currentDay.focus}</Text>
           <Text style={styles.focusMeta}>{currentDay.exercises.length} exercises</Text>
