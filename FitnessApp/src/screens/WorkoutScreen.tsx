@@ -19,12 +19,15 @@ export default function WorkoutScreen({ navigation }: any) {
       const uid = auth.currentUser?.uid;
       if (!uid) return;
       const snap = await getDoc(doc(db, 'plans', uid));
-      if (snap.exists()) {
-        const userData = await getDoc(doc(db, 'users', uid));
-        const totalWorkouts = userData.data()?.totalWorkouts ?? 0;
-        const daysPerWeek = userData.data()?.daysPerWeek ?? 3;
-        const todayIndex = totalWorkouts % daysPerWeek;
-        setExercises(snap.data().days[todayIndex].exercises);
+      if (snap.exists()) {const userSnap = await getDoc(doc(db, 'users', uid));
+        const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const todayName = DAY_NAMES[new Date().getDay()];
+        const workoutDays: string[] = userSnap.data()?.workoutDays ?? [];
+        const todayIndex = workoutDays.length > 0
+          ? workoutDays.indexOf(todayName)
+          : (userSnap.data()?.totalWorkouts ?? 0) % (userSnap.data()?.daysPerWeek ?? 3);
+        const safeIndex = todayIndex >= 0 ? todayIndex : 0;
+        setExercises(snap.data().days[safeIndex].exercises);
       }
     };
     fetchPlan();
