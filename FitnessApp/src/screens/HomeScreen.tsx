@@ -9,11 +9,14 @@ import { auth, db } from '../services/firebase';
 import { generateWorkoutPlan } from '../utils/ilpAlgo';
 import { useFocusEffect } from '@react-navigation/native';
 
+const DAY_NAMES  = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_ORDER  = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
 export default function HomeScreen({ navigation }: any) {
-  const [userData, setUserData]       = useState<any>(null);
-  const [plan, setPlan]               = useState<any[]>([]);
-  const [loading, setLoading]         = useState(false);
-  const [notification, setNotification] = useState<any>(null);
+  const [userData, setUserData]             = useState<any>(null);
+  const [plan, setPlan]                     = useState<any[]>([]);
+  const [loading, setLoading]               = useState(false);
+  const [notification, setNotification]     = useState<any>(null);
   const [selectedExercise, setSelectedExercise] = useState<any>(null);
 
   const fetchData = async () => {
@@ -63,13 +66,33 @@ export default function HomeScreen({ navigation }: any) {
     setNotification(null);
   };
 
-  const today            = new Date().toISOString().split('T')[0];
+  // ── Day logic ──────────────────────────────────────────────────────────────
+  const today        = new Date().toISOString().split('T')[0];
+  const todayName    = DAY_NAMES[new Date().getDay()]; // e.g. "Mon"
+  const workoutDays: string[] = userData?.workoutDays ?? [];
+
+  // Is today a workout day?
+  const isWorkoutDay = workoutDays.length === 0 || workoutDays.includes(todayName);
+
+  // Which plan day to show
+  const todayIndex = workoutDays.length > 0
+    ? workoutDays.indexOf(todayName)
+    : (userData?.totalWorkouts ?? 0) % (userData?.daysPerWeek ?? 3); // fallback for old accounts
+
+  const todayPlan        = plan[todayIndex] ?? plan[0];
   const workoutDoneToday = userData?.lastWorkoutDate === today;
-  const totalWorkouts    = userData?.totalWorkouts ?? 0;
-  const daysPerWeek      = userData?.daysPerWeek ?? 3;
-  const todayIndex       = totalWorkouts % daysPerWeek;
-  const todayPlan        = plan[todayIndex];
   const cardLabel        = workoutDoneToday ? 'NEXT WORKOUT' : 'TODAY\'S WORKOUT';
+
+  // Next workout day label for rest day screen
+  const nextWorkoutDay = (() => {
+    if (workoutDays.length === 0) return null;
+    const todayOrderIndex = DAY_ORDER.indexOf(todayName);
+    const next = workoutDays
+      .slice()
+      .sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
+      .find(d => DAY_ORDER.indexOf(d) > todayOrderIndex);
+    return next ?? workoutDays[0]; // wrap around to first day of next week
+  })();
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -95,44 +118,80 @@ export default function HomeScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* Today's Workout Card */}
-      <View style={styles.workoutCard}>
-        <Text style={styles.todayLabel}>{cardLabel}</Text>
-        <Text style={styles.workoutTitle}>
-          {todayPlan ? todayPlan.focus : 'No plan generated yet'}
-        </Text>
-        <Text style={styles.workoutMeta}>
-          {todayPlan
-            ? `${todayPlan.exercises.length} exercises · ${userData?.sessionDuration} min · ${userData?.level}`
-            : 'Tap below to generate your personalized plan'}
-        </Text>
-        {todayPlan ? (
-          workoutDoneToday ? (
-            <View style={styles.startButton}>
-              <Text style={styles.startButtonText}>✓ Workout Done Today</Text>
-            </View>
-          ) : (
-            <TouchableOpacity style={styles.startButton} onPress={() => navigation.navigate('Workout')}>
-              <Text style={styles.startButtonText}>Start Workout</Text>
-            </TouchableOpacity>
-          )
-        ) : (
-          <TouchableOpacity style={styles.startButton} onPress={handleGeneratePlan} disabled={loading}>
-            {loading
-              ? <ActivityIndicator color="#4F46E5" />
-              : <Text style={styles.startButtonText}>Generate Plan</Text>}
-          </TouchableOpacity>
-        )}
-      </View>
+      {/* Rest Day Card */}
+      {!isWorkoutDay ? (
+        <View style={styles.restCard}>
+          <Text style={styles.restEmoji}>😴</Text>
+          <Text style={styles.restTitle}>Rest Day</Text>
+          <Text style={styles.restSubtitle}>Today is {todayName} — enjoy your recovery!</Text>
+          {nextWorkoutDay && (
+            <Text style={styles.restNext}>Next workout: {nextWorkoutDay}</Text>
+          )}
+        </View>
+      ) : (
+        <>
+          {/* Today's Workout Card */}
+          <View style={styles.workoutCard}>
+            <Text style={styles.todayLabel}>{cardLabel}</Text>
+            <Text style={styles.workoutTitle}>
+              {todayPlan ? todayPlan.focus : 'No plan generated yet'}
+            </Text>
+            <Text style={styles.workoutMeta}>
+              {todayPlan
+                ? `${todayPlan.exercises.length} exercises · ${userData?.sessionDuration} min · ${userData?.level}`
+                : 'Tap below to generate your personalized plan'}
+            </Text>
+            {todayPlan ? (
+              workoutDoneToday ? (
+                <View style={styles.startButton}>
+                  <Text style={styles.startButtonText}>✓ Workout Done Today</Text>
+                </View>
+              ) : (
+                <TouchableOpacity style={styles.startButton} onPress={() => navigation.navigate('Workout')}>
+                  <Text style={styles.startButtonText}>Start Workout</Text>
+                </TouchableOpacity>
+              )
+            ) : (
+              <TouchableOpacity style={styles.startButton} onPress={handleGeneratePlan} disabled={loading}>
+                {loading
+                  ? <ActivityIndicator color="#4F46E5" />
+                  : <Text style={styles.startButtonText}>Generate Plan</Text>}
+              </TouchableOpacity>
+            )}
+          </View>
 
-      {/* Regenerate */}
-      {todayPlan && (
-        <TouchableOpacity onPress={handleGeneratePlan} disabled={loading}>
-          <Text style={styles.regenerate}>{loading ? 'Regenerating...' : '↺ Regenerate Plan'}</Text>
-        </TouchableOpacity>
+          {/* Regenerate */}
+          {todayPlan && (
+            <TouchableOpacity onPress={handleGeneratePlan} disabled={loading}>
+              <Text style={styles.regenerate}>{loading ? 'Regenerating...' : '↺ Regenerate Plan'}</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Today's Exercise List */}
+          {todayPlan && (
+            <View style={styles.exerciseList}>
+              <Text style={styles.sectionTitle}>Today's Exercises</Text>
+              {todayPlan.exercises.map((ex: any, i: number) => (
+                <TouchableOpacity
+                  key={i}
+                  style={styles.exerciseCard}
+                  onPress={() => setSelectedExercise(ex)}>
+                  <View style={styles.exerciseCardLeft}>
+                    <Text style={styles.exerciseName}>{ex.title}</Text>
+                    <Text style={styles.exerciseMeta}>{ex.bodyPart} · {ex.equipment}</Text>
+                    <Text style={styles.exerciseSetsReps}>
+                      {ex.sets ?? 3} sets × {ex.reps ?? 12} reps · {ex.rest ?? 60}s rest
+                    </Text>
+                  </View>
+                  <Text style={styles.exerciseChevron}>›</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </>
       )}
 
-      {/* Stats Row */}
+      {/* Stats Row — always visible */}
       <View style={styles.statsRow}>
         <View style={styles.statBox}>
           <Text style={styles.statEmoji}>🔥</Text>
@@ -150,28 +209,6 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.statLabel}>Total Time</Text>
         </View>
       </View>
-
-      {/* Today's Exercise List */}
-      {todayPlan && (
-        <View style={styles.exerciseList}>
-          <Text style={styles.sectionTitle}>Today's Exercises</Text>
-          {todayPlan.exercises.map((ex: any, i: number) => (
-            <TouchableOpacity
-              key={i}
-              style={styles.exerciseCard}
-              onPress={() => setSelectedExercise(ex)}>
-              <View style={styles.exerciseCardLeft}>
-                <Text style={styles.exerciseName}>{ex.title}</Text>
-                <Text style={styles.exerciseMeta}>{ex.bodyPart} · {ex.equipment}</Text>
-                <Text style={styles.exerciseSetsReps}>
-                  {ex.sets ?? 3} sets × {ex.reps ?? 12} reps · {ex.rest ?? 60}s rest
-                </Text>
-              </View>
-              <Text style={styles.exerciseChevron}>›</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
 
       {/* Exercise Preview Modal */}
       <ExerciseModal
@@ -197,15 +234,9 @@ function ExerciseModal({ exercise, onClose, onYouTube }: {
     <Modal visible={!!exercise} animationType="slide" transparent onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
         <Pressable style={styles.modalSheet} onPress={() => {}}>
-
-          {/* Handle bar */}
           <View style={styles.modalHandle} />
-
           <ScrollView showsVerticalScrollIndicator={false}>
-            {/* Title */}
             <Text style={styles.modalTitle}>{exercise.title}</Text>
-
-            {/* Tags */}
             <View style={styles.tagRow}>
               <View style={styles.tag}><Text style={styles.tagText}>{exercise.bodyPart}</Text></View>
               <View style={styles.tag}><Text style={styles.tagText}>{exercise.equipment}</Text></View>
@@ -213,8 +244,6 @@ function ExerciseModal({ exercise, onClose, onYouTube }: {
                 <Text style={[styles.tagText, styles.tagLevelText]}>{exercise.level}</Text>
               </View>
             </View>
-
-            {/* Sets / Reps / Rest */}
             <View style={styles.modalStatsRow}>
               <View style={styles.modalStatBox}>
                 <Text style={styles.modalStatValue}>{exercise.sets ?? 3}</Text>
@@ -229,26 +258,19 @@ function ExerciseModal({ exercise, onClose, onYouTube }: {
                 <Text style={styles.modalStatLabel}>Rest</Text>
               </View>
             </View>
-
-            {/* Description */}
             {exercise.desc ? (
               <>
                 <Text style={styles.modalSectionTitle}>Instructions</Text>
                 <Text style={styles.modalDesc}>{exercise.desc}</Text>
               </>
             ) : null}
-
-            {/* YouTube button */}
             <TouchableOpacity style={styles.youtubeButton} onPress={onYouTube}>
               <Text style={styles.youtubeButtonText}>▶ Watch Tutorial on YouTube</Text>
             </TouchableOpacity>
-
-            {/* Close */}
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <Text style={styles.closeButtonText}>Close</Text>
             </TouchableOpacity>
           </ScrollView>
-
         </Pressable>
       </Pressable>
     </Modal>
@@ -262,6 +284,13 @@ const styles = StyleSheet.create({
   greeting:             { fontSize: 26, fontWeight: 'bold' },
   subGreeting:          { fontSize: 14, color: '#666', marginTop: 2 },
   logout:               { color: '#4F46E5', fontSize: 14 },
+  // Rest day
+  restCard:             { backgroundColor: '#fff', borderRadius: 16, padding: 32, marginBottom: 16, alignItems: 'center' },
+  restEmoji:            { fontSize: 52, marginBottom: 12 },
+  restTitle:            { fontSize: 24, fontWeight: '700', color: '#111', marginBottom: 4 },
+  restSubtitle:         { fontSize: 15, color: '#666', textAlign: 'center', marginBottom: 8 },
+  restNext:             { fontSize: 13, color: '#4F46E5', fontWeight: '600' },
+  // Workout card
   workoutCard:          { backgroundColor: '#4F46E5', borderRadius: 16, padding: 24, marginBottom: 8 },
   todayLabel:           { color: '#A5B4FC', fontSize: 12, fontWeight: '600', marginBottom: 8 },
   workoutTitle:         { color: '#fff', fontSize: 22, fontWeight: 'bold', marginBottom: 4 },
@@ -269,11 +298,13 @@ const styles = StyleSheet.create({
   startButton:          { backgroundColor: '#fff', borderRadius: 8, padding: 14, alignItems: 'center' },
   startButtonText:      { color: '#4F46E5', fontWeight: '700', fontSize: 16 },
   regenerate:           { color: '#4F46E5', textAlign: 'right', fontSize: 13, marginBottom: 16, marginTop: 4 },
-  statsRow:             { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
+  // Stats
+  statsRow:             { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24, marginTop: 16 },
   statBox:              { flex: 1, backgroundColor: '#fff', borderRadius: 12, padding: 16, alignItems: 'center', marginHorizontal: 4 },
   statEmoji:            { fontSize: 20 },
   statValue:            { fontSize: 22, fontWeight: 'bold', marginTop: 4 },
   statLabel:            { fontSize: 12, color: '#666', marginTop: 2 },
+  // Exercise list
   exerciseList:         { marginTop: 8 },
   sectionTitle:         { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
   exerciseCard:         { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10, flexDirection: 'row', alignItems: 'center' },
@@ -282,6 +313,7 @@ const styles = StyleSheet.create({
   exerciseMeta:         { fontSize: 13, color: '#666' },
   exerciseSetsReps:     { fontSize: 12, color: '#4F46E5', fontWeight: '600', marginTop: 4 },
   exerciseChevron:      { fontSize: 22, color: '#ccc', marginLeft: 8 },
+  // Notification
   notificationBanner:   { backgroundColor: '#4F46E5', borderRadius: 12, padding: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center' },
   notificationText:     { flex: 1, color: '#fff', fontSize: 13, lineHeight: 18 },
   notificationDismiss:  { color: '#fff', fontSize: 18, marginLeft: 12 },
