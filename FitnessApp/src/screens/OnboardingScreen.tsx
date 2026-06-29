@@ -26,16 +26,16 @@ const equipmentOptions = [
   { label: 'Full Gym',     emoji: '💪' },
 ];
 
-const daysOptions     = [3, 4, 5, 6];
+const ALL_DAYS    = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAY_ORDER   = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const daysOptions = [1, 2, 3, 4, 5, 6, 7];
 const durationOptions = [30, 45, 60, 90];
 
-// Mifflin-St Jeor (tdeecalculator.net constants)
 function calculateBMR(sex: string, weight: number, height: number, age: number): number {
   const base = 10 * weight + 6.25 * height - 5 * age;
   return sex === 'Male' ? base + 5 : base - 151;
 }
 
-// daysPerWeek → activity multiplier
 function getActivityMultiplier(daysPerWeek: number): number {
   if (daysPerWeek <= 3) return 1.375;
   if (daysPerWeek <= 5) return 1.55;
@@ -47,22 +47,27 @@ function calculateTDEE(bmr: number, daysPerWeek: number): number {
 }
 
 export default function OnboardingScreen({ onComplete }: { onComplete?: () => void }) {
-  const [step, setStep] = useState(0);
-  const [goal, setGoal]         = useState('');
-  const [level, setLevel]       = useState('');
-  const [equipment, setEquipment] = useState('');
-  const [sex, setSex]           = useState<'Male' | 'Female' | ''>('');
-  const [age, setAge]           = useState('');
-  const [weight, setWeight]     = useState('');
-  const [height, setHeight]     = useState('');
-  const [days, setDays]         = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [loading, setLoading]   = useState(false);
+  const [step, setStep]               = useState(0);
+  const [goal, setGoal]               = useState('');
+  const [level, setLevel]             = useState('');
+  const [equipment, setEquipment]     = useState('');
+  const [sex, setSex]                 = useState<'Male' | 'Female' | ''>('');
+  const [age, setAge]                 = useState('');
+  const [weight, setWeight]           = useState('');
+  const [height, setHeight]           = useState('');
+  const [days, setDays]               = useState(0);
+  const [duration, setDuration]       = useState(0);
+  const [workoutDays, setWorkoutDays] = useState<string[]>([]);
+  const [scheduleSubStep, setScheduleSubStep] = useState<'count' | 'days'>('count');
+  const [loading, setLoading]         = useState(false);
 
   const totalSteps = 5;
 
   const handleFinish = async () => {
-    if (!days || !duration) { Alert.alert('Error', 'Please select your schedule'); return; }
+    if (!days || !duration || workoutDays.length !== days) {
+      Alert.alert('Error', 'Please complete your schedule');
+      return;
+    }
     setLoading(true);
     try {
       const uid = auth.currentUser?.uid;
@@ -73,12 +78,15 @@ export default function OnboardingScreen({ onComplete }: { onComplete?: () => vo
       const heightNum = parseFloat(height);
       const bmr       = Math.round(calculateBMR(sex, weightNum, heightNum, ageNum));
       const tdee      = calculateTDEE(bmr, days);
+      const sortedWorkoutDays = [...workoutDays].sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b));
 
       await updateDoc(doc(db, 'users', uid), {
         goal, level, equipment,
         sex, age: ageNum, weight: weightNum, height: heightNum,
         bmr, tdee,
-        daysPerWeek: days, sessionDuration: duration,
+        daysPerWeek: days,
+        workoutDays: sortedWorkoutDays,
+        sessionDuration: duration,
         onboardingComplete: true,
       });
 
@@ -100,7 +108,10 @@ export default function OnboardingScreen({ onComplete }: { onComplete?: () => vo
       const a = parseInt(age, 10), w = parseFloat(weight), h = parseFloat(height);
       return !!sex && !isNaN(a) && a > 0 && a < 120 && !isNaN(w) && w > 0 && !isNaN(h) && h > 0;
     }
-    if (step === 4) return !!days && !!duration;
+    if (step === 4) {
+      if (scheduleSubStep === 'count') return !!days && !!duration;
+      return workoutDays.length === days;
+    }
     return false;
   };
 
@@ -204,60 +215,117 @@ export default function OnboardingScreen({ onComplete }: { onComplete?: () => vo
       </View>
     );
 
-    if (step === 4) return (
-      <View>
-        <Text style={styles.title}>Your schedule</Text>
-        <Text style={styles.subtitle}>How many days per week?</Text>
-        <View style={styles.row}>
-          {daysOptions.map(d => (
-            <TouchableOpacity key={d} style={[styles.pill, days === d && styles.pillSelected]} onPress={() => setDays(d)}>
-              <Text style={[styles.pillText, days === d && styles.pillTextSelected]}>{d} days</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+    if (step === 4) {
+      // Sub-step 1: pick count + duration
+      if (scheduleSubStep === 'count') return (
+        <View>
+          <Text style={styles.title}>Your schedule</Text>
+          <Text style={styles.subtitle}>How many days per week do you want to train?</Text>
+          <View style={styles.row}>
+            {daysOptions.map(d => (
+              <TouchableOpacity
+                key={d}
+                style={[styles.pill, days === d && styles.pillSelected]}
+                onPress={() => { setDays(d); setWorkoutDays([]); }}>
+                <Text style={[styles.pillText, days === d && styles.pillTextSelected]}>{d} day{d > 1 ? 's' : ''}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-        <Text style={[styles.subtitle, { marginTop: 28 }]}>Session duration?</Text>
-        <View style={styles.row}>
-          {durationOptions.map(d => (
-            <TouchableOpacity key={d} style={[styles.pill, duration === d && styles.pillSelected]} onPress={() => setDuration(d)}>
-              <Text style={[styles.pillText, duration === d && styles.pillTextSelected]}>{d} min</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+          <Text style={[styles.subtitle, { marginTop: 28 }]}>Session duration?</Text>
+          <View style={styles.row}>
+            {durationOptions.map(d => (
+              <TouchableOpacity key={d} style={[styles.pill, duration === d && styles.pillSelected]} onPress={() => setDuration(d)}>
+                <Text style={[styles.pillText, duration === d && styles.pillTextSelected]}>{d} min</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-        {days > 0 && sex && age && weight && height && (() => {
-          const bmrVal  = Math.round(calculateBMR(sex, parseFloat(weight), parseFloat(height), parseInt(age, 10)));
-          const tdeeVal = calculateTDEE(bmrVal, days);
-          return (
-            <View style={styles.tdeePreview}>
-              <Text style={styles.tdeeLabel}>Your daily calorie target (TDEE)</Text>
-              <Text style={styles.tdeeValue}>{tdeeVal} kcal / day</Text>
-              <Text style={styles.tdeeNote}>
-                {goal === 'Lose Weight'   ? 'Aim to eat ~300–500 kcal below this to lose weight steadily'
-                : goal === 'Build Muscle' ? 'Aim to eat ~200–300 kcal above this to build muscle'
-                :                          'Eat close to this to maintain your current weight'}
-              </Text>
-            </View>
-          );
-        })()}
-      </View>
-    );
+          {days > 0 && sex && age && weight && height && (() => {
+            const bmrVal  = Math.round(calculateBMR(sex, parseFloat(weight), parseFloat(height), parseInt(age, 10)));
+            const tdeeVal = calculateTDEE(bmrVal, days);
+            return (
+              <View style={styles.tdeePreview}>
+                <Text style={styles.tdeeLabel}>Your daily calorie target (TDEE)</Text>
+                <Text style={styles.tdeeValue}>{tdeeVal} kcal / day</Text>
+                <Text style={styles.tdeeNote}>
+                  {goal === 'Lose Weight'   ? 'Aim to eat ~300–500 kcal below this to lose weight steadily'
+                  : goal === 'Build Muscle' ? 'Aim to eat ~200–300 kcal above this to build muscle'
+                  :                          'Eat close to this to maintain your current weight'}
+                </Text>
+              </View>
+            );
+          })()}
+
+          {/* Inline next button — goes to day picker */}
+          {days > 0 && duration > 0 && (
+            <TouchableOpacity style={[styles.button, { marginTop: 24 }]} onPress={() => setScheduleSubStep('days')}>
+              <Text style={styles.buttonText}>Pick Your Days →</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      );
+
+      // Sub-step 2: pick which days
+      return (
+        <View>
+          <Text style={styles.title}>Pick your {days} day{days > 1 ? 's' : ''}</Text>
+          <Text style={styles.subtitle}>
+            Select exactly {days} day{days > 1 ? 's' : ''} you'll train each week ({workoutDays.length}/{days} selected)
+          </Text>
+          <View style={styles.grid}>
+            {ALL_DAYS.map(day => {
+              const selected   = workoutDays.includes(day);
+              const maxReached = workoutDays.length >= days && !selected;
+              return (
+                <TouchableOpacity
+                  key={day}
+                  style={[styles.card, selected && styles.cardSelected, maxReached && styles.cardDisabled]}
+                  onPress={() => {
+                    if (maxReached) return;
+                    setWorkoutDays(prev =>
+                      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+                    );
+                  }}
+                  disabled={maxReached}>
+                  <Text style={styles.cardEmoji}>{selected ? '✅' : maxReached ? '🔒' : '📅'}</Text>
+                  <Text style={[styles.cardLabel, selected && styles.cardLabelSelected]}>{day}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <TouchableOpacity style={styles.backButton} onPress={() => setScheduleSubStep('count')}>
+            <Text style={styles.backText}>← Change count or duration</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
   };
+
+  // Hide the main Continue button on count sub-step (uses inline button instead)
+  const showMainButton = !(step === 4 && scheduleSubStep === 'count');
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         {renderDots()}
         {renderStep()}
-        <TouchableOpacity
-          style={[styles.button, !canProceed() && styles.buttonDisabled]}
-          onPress={step < totalSteps - 1 ? () => setStep(step + 1) : handleFinish}
-          disabled={!canProceed() || loading}>
-          {loading
-            ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.buttonText}>{step < totalSteps - 1 ? 'Continue' : 'Generate My Plan'}</Text>}
-        </TouchableOpacity>
-        {step > 0 && (
+
+        {showMainButton && (
+          <TouchableOpacity
+            style={[styles.button, !canProceed() && styles.buttonDisabled]}
+            onPress={step < totalSteps - 1 ? () => setStep(step + 1) : handleFinish}
+            disabled={!canProceed() || loading}>
+            {loading
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.buttonText}>
+                  {step < totalSteps - 1 ? 'Continue' : 'Generate My Plan'}
+                </Text>}
+          </TouchableOpacity>
+        )}
+
+        {step > 0 && !(step === 4 && scheduleSubStep === 'days') && (
           <TouchableOpacity style={styles.backButton} onPress={() => setStep(step - 1)} disabled={loading}>
             <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
@@ -277,6 +345,7 @@ const styles = StyleSheet.create({
   grid:               { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   card:               { width: '47%', padding: 20, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E7EB', alignItems: 'center', backgroundColor: '#FAFAFA' },
   cardSelected:       { borderColor: '#4F46E5', backgroundColor: '#EEF2FF' },
+  cardDisabled:       { opacity: 0.4 },
   cardEmoji:          { fontSize: 28, marginBottom: 8 },
   cardLabel:          { fontSize: 14, fontWeight: '600', color: '#444', textAlign: 'center' },
   cardLabelSelected:  { color: '#4F46E5' },
