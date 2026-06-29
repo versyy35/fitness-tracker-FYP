@@ -10,7 +10,7 @@ export default function WorkoutScreen({ navigation }: any) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [completedIndices, setCompletedIndices] = useState<number[]>([]);
   const [seconds, setSeconds] = useState(0);
-  const [restSeconds, setRestSeconds] = useState(60);
+  const [restSeconds, setRestSeconds] = useState(0);
   const [isResting, setIsResting] = useState(false);
   const timerRef = useRef<any>(null);
 
@@ -59,7 +59,7 @@ export default function WorkoutScreen({ navigation }: any) {
     setCompletedIndices(prev => [...prev, currentIndex]);
     if (currentIndex < exercises.length - 1) {
       setIsResting(true);
-      setRestSeconds(60);
+      setRestSeconds(exercises[currentIndex + 1]?.rest ?? 60);
       setTimeout(() => {
         setCurrentIndex(i => i + 1);
         setSeconds(0);
@@ -165,15 +165,15 @@ export default function WorkoutScreen({ navigation }: any) {
 
             <View style={styles.statsRow}>
               <View style={styles.statBox}>
-                <Text style={styles.statValue}>3</Text>
+                <Text style={styles.statValue}>{current.sets ?? 3}</Text>
                 <Text style={styles.statLabel}>Sets</Text>
               </View>
               <View style={styles.statBox}>
-                <Text style={styles.statValue}>12</Text>
+                <Text style={styles.statValue}>{current.reps ?? 12}</Text>
                 <Text style={styles.statLabel}>Reps</Text>
               </View>
               <View style={styles.statBox}>
-                <Text style={styles.statValue}>60s</Text>
+                <Text style={styles.statValue}>{current.rest ?? 60}s</Text>
                 <Text style={styles.statLabel}>Rest</Text>
               </View>
             </View>
