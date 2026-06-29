@@ -44,9 +44,9 @@ export default function HomeScreen({ navigation }: any) {
         createdAt: new Date().toISOString(),
       });
       setPlan(generatedPlan);
-      Alert.alert('Workout Complete! 🎉', 'Great job! Keep it up!', [
-        { text: 'Done', onPress: () => navigation.navigate('Main') }
-        ]);
+      Alert.alert('Plan Regenerated! 🔄', 'Your new workout plan is ready.', [
+        { text: 'Got it' }
+      ]);
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {
