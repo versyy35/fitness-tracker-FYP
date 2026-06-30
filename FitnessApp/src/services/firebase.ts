@@ -1,26 +1,24 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import {
+  FIREBASE_API_KEY,
+  FIREBASE_AUTH_DOMAIN,
+  FIREBASE_PROJECT_ID,
+  FIREBASE_STORAGE_BUCKET,
+  FIREBASE_MESSAGING_SENDER_ID,
+  FIREBASE_APP_ID,
+} from '@env';
 
 const firebaseConfig = {
-
-  apiKey: "AIzaSyB3_3ePNSvg_ZYnoWxLWRAqOWdYMRVbRGU",
-
-  authDomain: "smart-workout-app-e0f97.firebaseapp.com",
-
-  projectId: "smart-workout-app-e0f97",
-
-  storageBucket: "smart-workout-app-e0f97.firebasestorage.app",
-
-  messagingSenderId: "1049971222608",
-
-  appId: "1:1049971222608:web:3991c271559b6c80cd8955"
-
+  apiKey:            FIREBASE_API_KEY,
+  authDomain:        FIREBASE_AUTH_DOMAIN,
+  projectId:         FIREBASE_PROJECT_ID,
+  storageBucket:     FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
+  appId:             FIREBASE_APP_ID,
 };
 
-
 const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-export const storage = getStorage(app);
+export const auth    = getAuth(app);
+export const db      = getFirestore(app);
