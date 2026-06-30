@@ -16,10 +16,15 @@ export default function AdminScreen() {
 
   useEffect(() => {
     const fetchUsers = async () => {
-      const snap = await getDocs(collection(db, 'users'));
-      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setUsers(data.filter((u: any) => !u.isAdmin));
-      setLoading(false);
+      try {
+        const snap = await getDocs(collection(db, 'users'));
+        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setUsers(data.filter((u: any) => !u.isAdmin));
+      } catch (e: any) {
+        Alert.alert('Permission Error', e.message);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchUsers();
   }, []);
@@ -127,35 +132,35 @@ const UserCard = ({ user, active, onRemind }: {
 );
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  content: { padding: 24, paddingTop: 60 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  title: { fontSize: 26, fontWeight: 'bold' },
-  logout: { color: '#EF4444', fontSize: 14, fontWeight: '600' },
-  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-  statCard: { flex: 1, backgroundColor: '#fff', borderRadius: 12, padding: 16, alignItems: 'center' },
-  statCardGreen: { backgroundColor: '#DCFCE7' },
-  statCardRed: { backgroundColor: '#FEE2E2' },
-  statValue: { fontSize: 28, fontWeight: 'bold' },
-  statLabel: { fontSize: 12, color: '#666', marginTop: 2 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 12, marginTop: 8 },
-  empty: { color: '#999', fontStyle: 'italic', marginBottom: 12 },
-  userCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10, borderLeftWidth: 4 },
-  userCardActive: { borderLeftColor: '#22C55E' },
+  container:        { flex: 1, backgroundColor: '#f5f5f5' },
+  content:          { padding: 24, paddingTop: 60 },
+  header:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  title:            { fontSize: 26, fontWeight: 'bold' },
+  logout:           { color: '#EF4444', fontSize: 14, fontWeight: '600' },
+  statsRow:         { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  statCard:         { flex: 1, backgroundColor: '#fff', borderRadius: 12, padding: 16, alignItems: 'center' },
+  statCardGreen:    { backgroundColor: '#DCFCE7' },
+  statCardRed:      { backgroundColor: '#FEE2E2' },
+  statValue:        { fontSize: 28, fontWeight: 'bold' },
+  statLabel:        { fontSize: 12, color: '#666', marginTop: 2 },
+  sectionTitle:     { fontSize: 16, fontWeight: 'bold', marginBottom: 12, marginTop: 8 },
+  empty:            { color: '#999', fontStyle: 'italic', marginBottom: 12 },
+  userCard:         { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10, borderLeftWidth: 4 },
+  userCardActive:   { borderLeftColor: '#22C55E' },
   userCardInactive: { borderLeftColor: '#EF4444' },
-  userRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#4F46E5', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  avatarText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  userInfo: { flex: 1 },
-  userName: { fontSize: 15, fontWeight: '600' },
-  userEmail: { fontSize: 12, color: '#666' },
-  badge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12 },
-  badgeGreen: { backgroundColor: '#DCFCE7' },
-  badgeRed: { backgroundColor: '#FEE2E2' },
-  badgeText: { fontSize: 11, fontWeight: '600' },
-  userStats: { flexDirection: 'row', gap: 12, marginBottom: 6 },
-  userStat: { fontSize: 12, color: '#555' },
-  lastSeen: { fontSize: 11, color: '#999' },
-  remindButton: { backgroundColor: '#4F46E5', borderRadius: 8, padding: 10, alignItems: 'center', marginTop: 10 },
+  userRow:          { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  avatar:           { width: 40, height: 40, borderRadius: 20, backgroundColor: '#4F46E5', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  avatarText:       { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  userInfo:         { flex: 1 },
+  userName:         { fontSize: 15, fontWeight: '600' },
+  userEmail:        { fontSize: 12, color: '#666' },
+  badge:            { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12 },
+  badgeGreen:       { backgroundColor: '#DCFCE7' },
+  badgeRed:         { backgroundColor: '#FEE2E2' },
+  badgeText:        { fontSize: 11, fontWeight: '600' },
+  userStats:        { flexDirection: 'row', gap: 12, marginBottom: 6 },
+  userStat:         { fontSize: 12, color: '#555' },
+  lastSeen:         { fontSize: 11, color: '#999' },
+  remindButton:     { backgroundColor: '#4F46E5', borderRadius: 8, padding: 10, alignItems: 'center', marginTop: 10 },
   remindButtonText: { color: '#fff', fontWeight: '600', fontSize: 13 },
 });

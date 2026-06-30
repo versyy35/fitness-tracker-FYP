@@ -64,7 +64,7 @@ function AppStack({ onboardingComplete, onOnboardingComplete, isAdmin }: {
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen name="Workout" component={WorkoutScreen} />
             <Stack.Screen name="ExerciseVideo" component={ExerciseVideoScreen} />
-            <Stack.Screen name="Settings" component={SettingScreen}/>
+            <Stack.Screen name ="Settings" component={SettingScreen}/>
           </>
         )
       ) : (
