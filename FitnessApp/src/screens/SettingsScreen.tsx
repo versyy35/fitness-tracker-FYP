@@ -11,6 +11,7 @@ import {
 } from 'firebase/auth';
 import { useFocusEffect } from '@react-navigation/native';
 import { generateWorkoutPlan } from '../utils/ilpAlgo';
+import { replacePlan, deletePlanHistory } from '../utils/planHistory';
 
 const goals         = ['Build Muscle', 'Lose Weight', 'Maintain', 'Stay Healthy'];
 const levels        = ['Beginner', 'Intermediate', 'Advanced'];
@@ -160,7 +161,7 @@ export default function SettingsScreen({ navigation }: any) {
       daysPerWeek:     data?.daysPerWeek,
       sessionDuration: data?.sessionDuration,
     });
-    await setDoc(doc(db, 'plans', uid), { days: newPlan, createdAt: new Date().toISOString() });
+      await replacePlan(uid, newPlan, 'settings_change');
   };
 
   // ── Section saves ───────────────────────────────────────────────────────────
@@ -238,6 +239,7 @@ export default function SettingsScreen({ navigation }: any) {
                   const uid = auth.currentUser!.uid;
                   await deleteDoc(doc(db, 'users', uid));
                   await deleteDoc(doc(db, 'plans', uid));
+                  await deletePlanHistory(uid);
                   await deleteUser(auth.currentUser!);
                 } catch (e: any) {
                   Alert.alert('Error', e.message);

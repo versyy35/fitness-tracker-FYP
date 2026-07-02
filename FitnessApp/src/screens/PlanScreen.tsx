@@ -3,10 +3,13 @@ import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Modal, Pressable, Alert
 } from 'react-native';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { useFocusEffect } from '@react-navigation/native';
 import { generateWorkoutPlan } from '../utils/ilpAlgo';
+import {
+  replacePlan, rerollToPlan, getPlanHistory, reasonLabel, PlanHistoryEntry,
+} from '../utils/planHistory';
 
 export default function PlanScreen({ navigation }: any) {
   const [plan, setPlan]                         = useState<any[]>([]);
@@ -15,6 +18,11 @@ export default function PlanScreen({ navigation }: any) {
   const [regeneratingDay, setRegeneratingDay]   = useState(false);
   const [selectedDay, setSelectedDay]           = useState(0);
   const [selectedExercise, setSelectedExercise] = useState<any>(null);
+  const [activeTab, setActiveTab]               = useState<'plan' | 'history'>('plan');
+  const [history, setHistory]                   = useState<PlanHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading]     = useState(false);
+  const [expandedEntry, setExpandedEntry]       = useState<string | null>(null);
+  const [rerolling, setRerolling]               = useState<string | null>(null);
 
   useFocusEffect(useCallback(() => {
     const fetchData = async () => {
@@ -31,6 +39,56 @@ export default function PlanScreen({ navigation }: any) {
     };
     fetchData();
   }, []));
+
+  const loadHistory = useCallback(async () => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    setHistoryLoading(true);
+    try {
+      const entries = await getPlanHistory(uid);
+      setHistory(entries);
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  const handleSelectTab = (tab: 'plan' | 'history') => {
+    setActiveTab(tab);
+    if (tab === 'history') loadHistory();
+  };
+
+  const handleReroll = (entry: PlanHistoryEntry) => {
+    Alert.alert(
+      'Reroll to This Plan?',
+      `This will replace your current plan with the one from ${formatDate(entry.archivedAt)}. Your current plan will be saved to history too, so you can always come back.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reroll',
+          onPress: async () => {
+            const uid = auth.currentUser?.uid;
+            if (!uid) return;
+            setRerolling(entry.id);
+            try {
+              await rerollToPlan(uid, entry);
+              const planSnap = await getDoc(doc(db, 'plans', uid));
+              if (planSnap.exists()) setPlan(planSnap.data().days);
+              await loadHistory();
+              setActiveTab('plan');
+              setSelectedDay(0);
+              Alert.alert('Plan Restored ↺', 'Your workout plan has been rolled back.');
+            } catch (e: any) {
+              Alert.alert('Error', e.message);
+            } finally {
+              setRerolling(null);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleRegenerateDay = async () => {
     if (!userData) return;
@@ -63,10 +121,7 @@ export default function PlanScreen({ navigation }: any) {
                   : day
               );
 
-              await setDoc(doc(db, 'plans', uid), {
-                days:      updatedPlan,
-                createdAt: new Date().toISOString(),
-              });
+              await replacePlan(uid, updatedPlan, 'day_regenerate');
 
               setPlan(updatedPlan);
             } catch (e: any) {
@@ -95,62 +150,94 @@ export default function PlanScreen({ navigation }: any) {
     <View style={styles.container}>
       <Text style={styles.title}>My Plan</Text>
 
-      {/* Day Selector */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.dayScroll}
-        contentContainerStyle={{ alignItems: 'center', paddingRight: 24 }}>
-        {plan.map((day, i) => (
-          <TouchableOpacity
-            key={i}
-            style={[styles.dayTab, selectedDay === i && styles.dayTabActive]}
-            onPress={() => setSelectedDay(i)}>
-            <Text style={[styles.dayTabText, selectedDay === i && styles.dayTabTextActive]}>
-              {day.day}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {/* Focus Card */}
-      <View style={styles.focusCard}>
-        <View style={{ flex: 1, marginRight: 12 }}>
-          <Text style={styles.focusLabel}>FOCUS</Text>
-          <Text style={styles.focusTitle}>{currentDay.focus}</Text>
-          <Text style={styles.focusMeta}>{currentDay.exercises.length} exercises</Text>
-        </View>
+      {/* Plan / History Tab Bar */}
+      <View style={styles.tabBar}>
         <TouchableOpacity
-          style={styles.regenDayButton}
-          onPress={handleRegenerateDay}
-          disabled={regeneratingDay}>
-          {regeneratingDay
-            ? <ActivityIndicator color="#4F46E5" size="small" />
-            : <Text style={styles.regenDayText}>↺ Regenerate Day</Text>}
+          style={[styles.tabButton, activeTab === 'plan' && styles.tabButtonActive]}
+          onPress={() => handleSelectTab('plan')}>
+          <Text style={[styles.tabButtonText, activeTab === 'plan' && styles.tabButtonTextActive]}>
+            This Week
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tabButton, activeTab === 'history' && styles.tabButtonActive]}
+          onPress={() => handleSelectTab('history')}>
+          <Text style={[styles.tabButtonText, activeTab === 'history' && styles.tabButtonTextActive]}>
+            History
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Exercise List */}
-      <ScrollView style={styles.exerciseList}>
-        {currentDay.exercises.map((ex: any, i: number) => (
-          <TouchableOpacity
-            key={i}
-            style={styles.exerciseCard}
-            onPress={() => setSelectedExercise(ex)}>
-            <View style={styles.exerciseIndex}>
-              <Text style={styles.exerciseIndexText}>{i + 1}</Text>
+      {activeTab === 'plan' ? (
+        <>
+          {/* Day Selector */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.dayScroll}
+            contentContainerStyle={{ alignItems: 'center', paddingRight: 24 }}>
+            {plan.map((day, i) => (
+              <TouchableOpacity
+                key={i}
+                style={[styles.dayTab, selectedDay === i && styles.dayTabActive]}
+                onPress={() => setSelectedDay(i)}>
+                <Text style={[styles.dayTabText, selectedDay === i && styles.dayTabTextActive]}>
+                  {day.day}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Focus Card */}
+          <View style={styles.focusCard}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={styles.focusLabel}>FOCUS</Text>
+              <Text style={styles.focusTitle}>{currentDay.focus}</Text>
+              <Text style={styles.focusMeta}>{currentDay.exercises.length} exercises</Text>
             </View>
-            <View style={styles.exerciseInfo}>
-              <Text style={styles.exerciseName}>{ex.title}</Text>
-              <Text style={styles.exerciseMeta}>{ex.bodyPart} · {ex.equipment}</Text>
-              <Text style={styles.exerciseSetsReps}>
-                {ex.sets ?? 3} sets × {ex.reps ?? 12} reps · {ex.rest ?? 60}s rest
-              </Text>
-            </View>
-            <Text style={styles.exerciseChevron}>›</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+            <TouchableOpacity
+              style={styles.regenDayButton}
+              onPress={handleRegenerateDay}
+              disabled={regeneratingDay}>
+              {regeneratingDay
+                ? <ActivityIndicator color="#4F46E5" size="small" />
+                : <Text style={styles.regenDayText}>↺ Regenerate Day</Text>}
+            </TouchableOpacity>
+          </View>
+
+          {/* Exercise List */}
+          <ScrollView style={styles.exerciseList}>
+            {currentDay.exercises.map((ex: any, i: number) => (
+              <TouchableOpacity
+                key={i}
+                style={styles.exerciseCard}
+                onPress={() => setSelectedExercise(ex)}>
+                <View style={styles.exerciseIndex}>
+                  <Text style={styles.exerciseIndexText}>{i + 1}</Text>
+                </View>
+                <View style={styles.exerciseInfo}>
+                  <Text style={styles.exerciseName}>{ex.title}</Text>
+                  <Text style={styles.exerciseMeta}>{ex.bodyPart} · {ex.equipment}</Text>
+                  <Text style={styles.exerciseSetsReps}>
+                    {ex.sets ?? 3} sets × {ex.reps ?? 12} reps · {ex.rest ?? 60}s rest
+                  </Text>
+                </View>
+                <Text style={styles.exerciseChevron}>›</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </>
+      ) : (
+        <HistoryList
+          history={history}
+          loading={historyLoading}
+          expandedEntry={expandedEntry}
+          onToggleExpand={(id) => setExpandedEntry(expandedEntry === id ? null : id)}
+          onReroll={handleReroll}
+          rerolling={rerolling}
+          onPreviewExercise={setSelectedExercise}
+        />
+      )}
 
       {/* Exercise Preview Modal */}
       <ExerciseModal
@@ -162,6 +249,91 @@ export default function PlanScreen({ navigation }: any) {
         }}
       />
     </View>
+  );
+}
+
+function formatDate(iso: string) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return 'Unknown date';
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) +
+    ' · ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+function HistoryList({
+  history, loading, expandedEntry, onToggleExpand, onReroll, rerolling, onPreviewExercise,
+}: {
+  history: PlanHistoryEntry[];
+  loading: boolean;
+  expandedEntry: string | null;
+  onToggleExpand: (id: string) => void;
+  onReroll: (entry: PlanHistoryEntry) => void;
+  rerolling: string | null;
+  onPreviewExercise: (ex: any) => void;
+}) {
+  if (loading) return <ActivityIndicator style={{ marginTop: 40 }} />;
+
+  if (history.length === 0) {
+    return (
+      <View style={styles.historyEmpty}>
+        <Text style={styles.emptyText}>No past plans yet.</Text>
+        <Text style={styles.emptySubtext}>
+          Every time your plan is regenerated, the old version is saved here.
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.exerciseList}>
+      {history.map((entry) => {
+        const isOpen = expandedEntry === entry.id;
+        const totalExercises = entry.days.reduce((sum: number, d: any) => sum + (d.exercises?.length ?? 0), 0);
+        return (
+          <View key={entry.id} style={styles.historyCard}>
+            <TouchableOpacity style={styles.historyCardHeader} onPress={() => onToggleExpand(entry.id)}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.historyReason}>{reasonLabel(entry.reason)}</Text>
+                <Text style={styles.historyDate}>{formatDate(entry.archivedAt)}</Text>
+                <Text style={styles.historyMeta}>
+                  {entry.days.length} day{entry.days.length === 1 ? '' : 's'} · {totalExercises} exercises
+                </Text>
+              </View>
+              <Text style={styles.exerciseChevron}>{isOpen ? '︿' : '›'}</Text>
+            </TouchableOpacity>
+
+            {isOpen && (
+              <View style={styles.historyBody}>
+                {entry.days.map((day: any, i: number) => (
+                  <View key={i} style={styles.historyDayBlock}>
+                    <Text style={styles.historyDayTitle}>{day.day} · {day.focus}</Text>
+                    {day.exercises.map((ex: any, j: number) => (
+                      <TouchableOpacity
+                        key={j}
+                        style={styles.historyExerciseRow}
+                        onPress={() => onPreviewExercise(ex)}>
+                        <Text style={styles.historyExerciseText}>{ex.title}</Text>
+                        <Text style={styles.historyExerciseMeta}>
+                          {ex.sets ?? 3}×{ex.reps ?? 12}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ))}
+
+                <TouchableOpacity
+                  style={styles.rerollButton}
+                  onPress={() => onReroll(entry)}
+                  disabled={rerolling === entry.id}>
+                  {rerolling === entry.id
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Text style={styles.rerollButtonText}>↺ Reroll to This Plan</Text>}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        );
+      })}
+    </ScrollView>
   );
 }
 
@@ -222,6 +394,25 @@ const styles = StyleSheet.create({
   container:          { flex: 1, backgroundColor: '#f5f5f5', paddingTop: 60 },
   title:              { fontSize: 26, fontWeight: 'bold', paddingHorizontal: 24, marginBottom: 16 },
   dayScroll:          { paddingHorizontal: 24, marginBottom: 16, flexGrow: 0, height: 56 },
+  tabBar:             { flexDirection: 'row', marginHorizontal: 24, marginBottom: 16, backgroundColor: '#fff', borderRadius: 12, padding: 4 },
+  tabButton:          { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
+  tabButtonActive:    { backgroundColor: '#4F46E5' },
+  tabButtonText:      { fontSize: 14, fontWeight: '600', color: '#666' },
+  tabButtonTextActive:{ color: '#fff' },
+  historyEmpty:       { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
+  historyCard:        { backgroundColor: '#fff', borderRadius: 12, marginBottom: 10, overflow: 'hidden' },
+  historyCardHeader:  { flexDirection: 'row', alignItems: 'center', padding: 16 },
+  historyReason:      { fontSize: 15, fontWeight: '700', color: '#111' },
+  historyDate:        { fontSize: 13, color: '#666', marginTop: 2 },
+  historyMeta:        { fontSize: 12, color: '#4F46E5', fontWeight: '600', marginTop: 4 },
+  historyBody:        { paddingHorizontal: 16, paddingBottom: 16, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
+  historyDayBlock:    { marginTop: 12 },
+  historyDayTitle:    { fontSize: 13, fontWeight: '700', color: '#4F46E5', marginBottom: 6 },
+  historyExerciseRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
+  historyExerciseText:{ fontSize: 13, color: '#333', flex: 1 },
+  historyExerciseMeta:{ fontSize: 12, color: '#999' },
+  rerollButton:       { backgroundColor: '#4F46E5', borderRadius: 10, padding: 14, alignItems: 'center', marginTop: 16 },
+  rerollButtonText:   { color: '#fff', fontWeight: '700', fontSize: 15 },
   dayTab:             { paddingVertical: 8, paddingHorizontal: 20, borderRadius: 20, backgroundColor: '#fff', marginRight: 10, borderWidth: 1.5, borderColor: '#ddd', height: 40, justifyContent: 'center', alignItems: 'center' },
   dayTabActive:       { backgroundColor: '#4F46E5', borderColor: '#4F46E5' },
   dayTabText:         { fontSize: 14, fontWeight: '600', color: '#666' },

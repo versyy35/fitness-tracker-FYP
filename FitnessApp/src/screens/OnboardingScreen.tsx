@@ -3,9 +3,10 @@ import {
   View, Text, TouchableOpacity, StyleSheet,
   Alert, ActivityIndicator, ScrollView, TextInput, KeyboardAvoidingView, Platform
 } from 'react-native';
-import { doc, updateDoc, setDoc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { generateWorkoutPlan } from '../utils/ilpAlgo';
+import { replacePlan } from '../utils/planHistory';
 
 const goals = [
   { label: 'Build Muscle', emoji: '💪' },
@@ -91,7 +92,7 @@ export default function OnboardingScreen({ onComplete }: { onComplete?: () => vo
       });
 
       const generatedPlan = generateWorkoutPlan({ goal, level, equipment, daysPerWeek: days, sessionDuration: duration });
-      await setDoc(doc(db, 'plans', uid), { days: generatedPlan, createdAt: new Date().toISOString() });
+      await replacePlan(uid, generatedPlan, 'onboarding');
       onComplete?.();
     } catch (error: any) {
       Alert.alert('Error', error.message);
