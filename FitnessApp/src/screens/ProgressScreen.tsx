@@ -5,11 +5,18 @@ import { auth, db } from '../services/firebase';
 import { useFocusEffect } from '@react-navigation/native';
 import { logWeight, getWeightLogs, WeightEntry } from '../utils/weightLog';
 
+const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const MONTH_LABELS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
 export default function ProgressScreen() {
   const [userData, setUserData]       = useState<any>(null);
   const [weightLogs, setWeightLogs]   = useState<WeightEntry[]>([]);
   const [weightLoading, setWeightLoading] = useState(true);
   const [logging, setLogging]         = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const d = new Date();
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
 
   const fetchAll = useCallback(async () => {
     const uid = auth.currentUser?.uid;
@@ -69,6 +76,11 @@ export default function ProgressScreen() {
   const chartMax = weightLogs.length > 0 ? Math.max(...weightLogs.map(e => e.weight)) : 0;
   const chartRange = chartMax - chartMin || 1;
 
+  const completedDates: string[] = userData?.completedDates ?? [];
+  const calendarCells = buildCalendarCells(calendarMonth.year, calendarMonth.month, completedDates);
+  const goToPrevMonth = () => setCalendarMonth(m => m.month === 0 ? { year: m.year - 1, month: 11 } : { year: m.year, month: m.month - 1 });
+  const goToNextMonth = () => setCalendarMonth(m => m.month === 11 ? { year: m.year + 1, month: 0 } : { year: m.year, month: m.month + 1 });
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Progress</Text>
@@ -114,6 +126,55 @@ export default function ProgressScreen() {
             {weeklyWorkouts >= daysPerWeek
               ? '✅ Weekly target complete! Streak +1'
               : `${daysPerWeek - weeklyWorkouts} workout${daysPerWeek - weeklyWorkouts === 1 ? '' : 's'} left to hit your weekly target`}
+          </Text>
+        </View>
+      </View>
+
+      {/* Workout Calendar */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Workout Calendar</Text>
+        <View style={styles.weeklyCard}>
+          <View style={styles.calendarHeader}>
+            <TouchableOpacity onPress={goToPrevMonth} style={styles.calendarNavButton}>
+              <Text style={styles.calendarNavText}>‹</Text>
+            </TouchableOpacity>
+            <Text style={styles.calendarMonthLabel}>
+              {MONTH_LABELS[calendarMonth.month]} {calendarMonth.year}
+            </Text>
+            <TouchableOpacity onPress={goToNextMonth} style={styles.calendarNavButton}>
+              <Text style={styles.calendarNavText}>›</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.calendarWeekRow}>
+            {WEEKDAY_LABELS.map((label, i) => (
+              <Text key={i} style={styles.calendarWeekDayLabel}>{label}</Text>
+            ))}
+          </View>
+
+          <View style={styles.calendarGrid}>
+            {calendarCells.map((cell, i) => (
+              <View key={i} style={styles.calendarCellWrapper}>
+                {cell.day != null && (
+                  <View style={[
+                    styles.calendarCell,
+                    cell.completed && styles.calendarCellCompleted,
+                    cell.isToday && !cell.completed && styles.calendarCellToday,
+                  ]}>
+                    <Text style={[
+                      styles.calendarCellText,
+                      cell.completed && styles.calendarCellTextCompleted,
+                    ]}>
+                      {cell.completed ? '✓' : cell.day}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+
+          <Text style={styles.weeklyHint}>
+            {completedDates.length} workout{completedDates.length === 1 ? '' : 's'} logged overall
           </Text>
         </View>
       </View>
@@ -230,6 +291,36 @@ function formatShortDate(iso: string) {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+interface CalendarCell {
+  day: number | null;
+  completed: boolean;
+  isToday: boolean;
+}
+
+function buildCalendarCells(year: number, month: number, completedDates: string[]): CalendarCell[] {
+  const completedSet = new Set(completedDates);
+  const firstDayOfWeek = new Date(year, month, 1).getDay(); // 0 = Sunday
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  const cells: CalendarCell[] = [];
+  for (let i = 0; i < firstDayOfWeek; i++) {
+    cells.push({ day: null, completed: false, isToday: false });
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    cells.push({
+      day,
+      completed: completedSet.has(dateStr),
+      isToday: dateStr === todayStr,
+    });
+  }
+  while (cells.length % 7 !== 0) {
+    cells.push({ day: null, completed: false, isToday: false });
+  }
+  return cells;
+}
+
 const InfoRow = ({ label, value, last }: { label: string; value: string; last?: boolean }) => (
   <View style={[styles.infoRow, !last && styles.infoRowBorder]}>
     <Text style={styles.infoLabel}>{label}</Text>
@@ -275,4 +366,17 @@ const styles = StyleSheet.create({
   barTrack:         { width: 20, height: 90, backgroundColor: '#f0f0f0', borderRadius: 10, justifyContent: 'flex-end', overflow: 'hidden' },
   bar:              { width: '100%', backgroundColor: '#4F46E5', borderRadius: 10 },
   barDate:          { fontSize: 10, color: '#999', marginTop: 4 },
+  calendarHeader:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  calendarNavButton:    { paddingHorizontal: 14, paddingVertical: 4 },
+  calendarNavText:      { fontSize: 22, color: '#4F46E5', fontWeight: '700' },
+  calendarMonthLabel:   { fontSize: 15, fontWeight: '700', color: '#111' },
+  calendarWeekRow:      { flexDirection: 'row', marginBottom: 6 },
+  calendarWeekDayLabel: { flex: 1, textAlign: 'center', fontSize: 12, color: '#999', fontWeight: '600' },
+  calendarGrid:         { flexDirection: 'row', flexWrap: 'wrap' },
+  calendarCellWrapper:  { width: `${100 / 7}%`, aspectRatio: 1, justifyContent: 'center', alignItems: 'center', marginBottom: 4 },
+  calendarCell:         { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  calendarCellCompleted:{ backgroundColor: '#4F46E5' },
+  calendarCellToday:    { borderWidth: 1.5, borderColor: '#4F46E5' },
+  calendarCellText:     { fontSize: 13, color: '#333', fontWeight: '500' },
+  calendarCellTextCompleted: { color: '#fff', fontWeight: '700' },
 });

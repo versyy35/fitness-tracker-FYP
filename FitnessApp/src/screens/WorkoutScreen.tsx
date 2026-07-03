@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert
 } from 'react-native';
-import { doc, getDoc, updateDoc, increment } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, increment, arrayUnion } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 
 export default function WorkoutScreen({ navigation }: any) {
@@ -102,6 +102,7 @@ export default function WorkoutScreen({ navigation }: any) {
         lastWorkoutDate: today,
         weeklyWorkouts: newWeeklyWorkouts,
         streak: newStreak,
+        completedDates: arrayUnion(today),
         ...(difficultyRating != null ? { lastDifficultyRating: difficultyRating } : {}),
       });
     } catch (e) {}
