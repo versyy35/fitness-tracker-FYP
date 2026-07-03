@@ -8,7 +8,8 @@ export type PlanReason =
   | 'full_regenerate'
   | 'day_regenerate'
   | 'settings_change'
-  | 'reroll';
+  | 'reroll'
+  | 'day_swap';
 
 const REASON_LABELS: Record<PlanReason, string> = {
   onboarding:       'Initial Plan',
@@ -16,6 +17,7 @@ const REASON_LABELS: Record<PlanReason, string> = {
   day_regenerate:   'Day Regenerated',
   settings_change:  'Settings Updated',
   reroll:           'Restored Plan',
+  day_swap:         'Days Swapped',
 };
 
 export function reasonLabel(reason?: string) {

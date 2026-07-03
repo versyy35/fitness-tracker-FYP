@@ -23,6 +23,8 @@ export default function PlanScreen({ navigation }: any) {
   const [historyLoading, setHistoryLoading]     = useState(false);
   const [expandedEntry, setExpandedEntry]       = useState<string | null>(null);
   const [rerolling, setRerolling]               = useState<string | null>(null);
+  const [swapModalVisible, setSwapModalVisible] = useState(false);
+  const [swapping, setSwapping]                 = useState(false);
 
   useFocusEffect(useCallback(() => {
     const fetchData = async () => {
@@ -135,6 +137,38 @@ export default function PlanScreen({ navigation }: any) {
     );
   };
 
+  const handleSwapDay = (targetIndex: number) => {
+    setSwapModalVisible(false);
+    Alert.alert(
+      'Swap These Days?',
+      `${currentDay.day} (${currentDay.focus}) will swap with ${plan[targetIndex].day} (${plan[targetIndex].focus}).`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Swap',
+          onPress: async () => {
+            setSwapping(true);
+            try {
+              const uid = auth.currentUser?.uid;
+              if (!uid) return;
+              const updatedPlan = plan.map((d, i) => {
+                if (i === selectedDay) return { ...d, focus: plan[targetIndex].focus, exercises: plan[targetIndex].exercises };
+                if (i === targetIndex) return { ...d, focus: currentDay.focus, exercises: currentDay.exercises };
+                return d;
+              });
+              await replacePlan(uid, updatedPlan, 'day_swap');
+              setPlan(updatedPlan);
+            } catch (e: any) {
+              Alert.alert('Error', e.message);
+            } finally {
+              setSwapping(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
 
   if (plan.length === 0) return (
@@ -205,6 +239,17 @@ export default function PlanScreen({ navigation }: any) {
             </TouchableOpacity>
           </View>
 
+          {plan.length > 1 && (
+            <TouchableOpacity
+              style={styles.swapDayButton}
+              onPress={() => setSwapModalVisible(true)}
+              disabled={swapping}>
+              {swapping
+                ? <ActivityIndicator color="#4F46E5" size="small" />
+                : <Text style={styles.swapDayText}>⇄ Swap with Another Day</Text>}
+            </TouchableOpacity>
+          )}
+
           {/* Exercise List */}
           <ScrollView style={styles.exerciseList}>
             {currentDay.exercises.map((ex: any, i: number) => (
@@ -238,6 +283,30 @@ export default function PlanScreen({ navigation }: any) {
           onPreviewExercise={setSelectedExercise}
         />
       )}
+
+      {/* Swap Day Picker Modal */}
+      <Modal visible={swapModalVisible} animationType="slide" transparent onRequestClose={() => setSwapModalVisible(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setSwapModalVisible(false)}>
+          <Pressable style={styles.modalSheet} onPress={() => {}}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>Swap {currentDay?.day} With...</Text>
+            <ScrollView>
+              {plan.map((d, i) => i !== selectedDay && (
+                <TouchableOpacity key={i} style={styles.swapOptionRow} onPress={() => handleSwapDay(i)}>
+                  <View>
+                    <Text style={styles.swapOptionDay}>{d.day}</Text>
+                    <Text style={styles.swapOptionFocus}>{d.focus}</Text>
+                  </View>
+                  <Text style={styles.exerciseChevron}>⇄</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity style={styles.closeButton} onPress={() => setSwapModalVisible(false)}>
+              <Text style={styles.closeButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Exercise Preview Modal */}
       <ExerciseModal
@@ -423,6 +492,11 @@ const styles = StyleSheet.create({
   focusMeta:          { color: '#C7D2FE', fontSize: 14 },
   regenDayButton:     { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
   regenDayText:       { color: '#fff', fontSize: 13, fontWeight: '600' },
+  swapDayButton:      { marginHorizontal: 24, marginTop: -8, marginBottom: 16, backgroundColor: '#fff', borderRadius: 10, padding: 12, alignItems: 'center', borderWidth: 1.5, borderColor: '#4F46E5' },
+  swapDayText:        { color: '#4F46E5', fontSize: 14, fontWeight: '600' },
+  swapOptionRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  swapOptionDay:      { fontSize: 15, fontWeight: '700', color: '#111' },
+  swapOptionFocus:    { fontSize: 13, color: '#666', marginTop: 2 },
   exerciseList:       { paddingHorizontal: 24 },
   exerciseCard:       { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10, flexDirection: 'row', alignItems: 'center' },
   exerciseIndex:      { width: 32, height: 32, borderRadius: 16, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
