@@ -4,6 +4,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { useFocusEffect } from '@react-navigation/native';
 import { logWeight, getWeightLogs, WeightEntry } from '../utils/weightLog';
+import { getBadgeProgress } from '../utils/achievements';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTH_LABELS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -75,6 +76,7 @@ export default function ProgressScreen() {
   const chartMin = weightLogs.length > 0 ? Math.min(...weightLogs.map(e => e.weight)) : 0;
   const chartMax = weightLogs.length > 0 ? Math.max(...weightLogs.map(e => e.weight)) : 0;
   const chartRange = chartMax - chartMin || 1;
+  const badges = getBadgeProgress(userData);
 
   const completedDates: string[] = userData?.completedDates ?? [];
   const calendarCells = buildCalendarCells(calendarMonth.year, calendarMonth.month, completedDates);
@@ -231,6 +233,24 @@ export default function ProgressScreen() {
         </View>
       </View>
 
+      {/* Achievements */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Achievements</Text>
+        <View style={styles.badgeGrid}>
+          {badges.map(badge => (
+            <View key={badge.id} style={[styles.badgeCard, !badge.unlocked && styles.badgeCardLocked]}>
+              <Text style={[styles.badgeEmoji, !badge.unlocked && styles.badgeEmojiLocked]}>
+                {badge.unlocked ? badge.emoji : '🔒'}
+              </Text>
+              <Text style={[styles.badgeLabel, !badge.unlocked && styles.badgeLabelLocked]}>
+                {badge.label}
+              </Text>
+              <Text style={styles.badgeDescription}>{badge.description}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
       {/* XP & Level */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>XP & Level</Text>
@@ -379,4 +399,12 @@ const styles = StyleSheet.create({
   calendarCellToday:    { borderWidth: 1.5, borderColor: '#4F46E5' },
   calendarCellText:     { fontSize: 13, color: '#333', fontWeight: '500' },
   calendarCellTextCompleted: { color: '#fff', fontWeight: '700' },
+  badgeGrid:            { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  badgeCard:            { width: '31%', backgroundColor: '#fff', borderRadius: 12, padding: 12, alignItems: 'center' },
+  badgeCardLocked:      { opacity: 0.45 },
+  badgeEmoji:           { fontSize: 30, marginBottom: 6 },
+  badgeEmojiLocked:     { fontSize: 26 },
+  badgeLabel:           { fontSize: 12, fontWeight: '700', color: '#111', textAlign: 'center', marginBottom: 2 },
+  badgeLabelLocked:     { color: '#999' },
+  badgeDescription:     { fontSize: 10, color: '#999', textAlign: 'center', lineHeight: 13 },
 });
