@@ -12,6 +12,8 @@ export default function WorkoutScreen({ navigation }: any) {
   const [seconds, setSeconds] = useState(0);
   const [restSeconds, setRestSeconds] = useState(0);
   const [isResting, setIsResting] = useState(false);
+  const [showRating, setShowRating] = useState(false);
+  const [submittingRating, setSubmittingRating] = useState(false);
   const timerRef = useRef<any>(null);
 
   useEffect(() => {
@@ -68,12 +70,13 @@ export default function WorkoutScreen({ navigation }: any) {
         setSeconds(0);
       }, 100);
     } else {
-      handleFinish();
+      clearInterval(timerRef.current);
+      setShowRating(true);
     }
   };
 
-  const handleFinish = async () => {
-    clearInterval(timerRef.current);
+  const handleFinish = async (difficultyRating: number | null) => {
+    setSubmittingRating(true);
     try {
       const uid = auth.currentUser?.uid;
       const today = new Date().toISOString().split('T')[0];
@@ -99,8 +102,10 @@ export default function WorkoutScreen({ navigation }: any) {
         lastWorkoutDate: today,
         weeklyWorkouts: newWeeklyWorkouts,
         streak: newStreak,
+        ...(difficultyRating != null ? { lastDifficultyRating: difficultyRating } : {}),
       });
     } catch (e) {}
+    setSubmittingRating(false);
     navigation.navigate('Main');
   };
 
@@ -135,7 +140,36 @@ export default function WorkoutScreen({ navigation }: any) {
         </View>
       )}
 
-      {!isResting && (
+      {/* Difficulty rating overlay */}
+      {showRating && (
+        <View style={styles.ratingOverlay}>
+          <Text style={styles.ratingEmoji}>🎉</Text>
+          <Text style={styles.ratingTitle}>Workout Complete!</Text>
+          <Text style={styles.ratingSubtitle}>How difficult was this workout?</Text>
+          <View style={styles.ratingRow}>
+            {[1, 2, 3, 4, 5].map(n => (
+              <TouchableOpacity
+                key={n}
+                style={styles.ratingCircle}
+                onPress={() => handleFinish(n)}
+                disabled={submittingRating}>
+                <Text style={styles.ratingCircleText}>{n}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={styles.ratingHint}>1 = Too Easy · 5 = Too Hard</Text>
+          <TouchableOpacity
+            style={styles.ratingSkip}
+            onPress={() => handleFinish(null)}
+            disabled={submittingRating}>
+            <Text style={styles.ratingSkipText}>
+              {submittingRating ? 'Saving...' : 'Skip'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {!isResting && !showRating && (
         <>
           <ScrollView contentContainerStyle={styles.content}>
             {/* Exercise Progress List */}
@@ -219,6 +253,16 @@ const styles = StyleSheet.create({
   restTimer: { color: '#fff', fontSize: 72, fontWeight: 'bold', marginBottom: 32 },
   skipRest: { backgroundColor: '#fff', paddingVertical: 12, paddingHorizontal: 32, borderRadius: 8 },
   skipRestText: { color: '#4F46E5', fontWeight: '700', fontSize: 16 },
+  ratingOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#4F46E5', padding: 24 },
+  ratingEmoji: { fontSize: 56, marginBottom: 8 },
+  ratingTitle: { color: '#fff', fontSize: 26, fontWeight: 'bold', marginBottom: 8 },
+  ratingSubtitle: { color: '#C7D2FE', fontSize: 15, marginBottom: 28 },
+  ratingRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  ratingCircle: { width: 52, height: 52, borderRadius: 26, backgroundColor: 'rgba(255,255,255,0.15)', borderWidth: 1.5, borderColor: '#fff', justifyContent: 'center', alignItems: 'center' },
+  ratingCircleText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  ratingHint: { color: '#C7D2FE', fontSize: 12, marginBottom: 28 },
+  ratingSkip: { paddingVertical: 10, paddingHorizontal: 20 },
+  ratingSkipText: { color: '#fff', fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' },
   content: { padding: 24 },
   progressList: { marginBottom: 20 },
   progressDot: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#f0f0f0', justifyContent: 'center', alignItems: 'center', marginRight: 8 },
